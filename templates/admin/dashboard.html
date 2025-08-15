@@ -36,42 +36,37 @@
 
 <!-- Charts -->
 <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
-    <h3 class="text-xl font-semibold mb-4">Overall Performance Over Time</h3>
-    <!-- Data is now passed via data attributes to prevent JS syntax errors -->
+    <h3 class="text-xl font-semibold mb-4">Student Performance Overview</h3>
     <canvas id="performanceChart" 
-            data-labels="{{ chart_labels | safe }}" 
-            data-values="{{ chart_values | safe }}">
+            data-labels='{{ chart_labels | tojson | safe }}' 
+            data-values='{{ chart_values | tojson | safe }}'>
     </canvas>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // This script is now more robust. It reads data from the canvas element.
     const chartCanvas = document.getElementById('performanceChart');
     if (chartCanvas) {
-        // Parse the data from the data attributes
         const labels = JSON.parse(chartCanvas.dataset.labels || '[]');
         const values = JSON.parse(chartCanvas.dataset.values || '[]');
 
         const ctx = chartCanvas.getContext('2d');
         const performanceChart = new Chart(ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Average Score (%)',
+                    label: 'Latest Score (%)',
                     data: values,
-                    backgroundColor: 'rgba(56, 189, 248, 0.2)',
+                    backgroundColor: 'rgba(56, 189, 248, 0.6)',
                     borderColor: 'rgba(56, 189, 248, 1)',
-                    borderWidth: 2,
-                    tension: 0.3,
-                    fill: true
+                    borderWidth: 1
                 }]
             },
             options: {
                 scales: {
-                    y: {
+                    y: { 
                         beginAtZero: true,
                         max: 100
                     }
@@ -79,11 +74,11 @@
                 responsive: true,
                 plugins: {
                     legend: {
-                        position: 'top',
+                        display: false
                     },
                     title: {
                         display: true,
-                        text: 'Daily Average Quiz Scores'
+                        text: 'Latest Quiz Score for Each Student'
                     }
                 }
             }

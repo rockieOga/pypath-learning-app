@@ -163,10 +163,26 @@ def dashboard():
         quiz_count = conn.execute('SELECT COUNT(*) FROM question_sets').fetchone()[0]
         avg_score_data = conn.execute('SELECT AVG(score * 100.0 / total_questions) as avg_score FROM results').fetchone()
         avg_score = avg_score_data['avg_score'] if avg_score_data and avg_score_data['avg_score'] else 0
-        performance_data = conn.execute("SELECT strftime('%Y-%m-%d', timestamp) as date, AVG(score * 100.0 / total_questions) as avg_score FROM results GROUP BY date ORDER BY date LIMIT 10").fetchall()
-        chart_labels, chart_values = [row['date'] for row in performance_data], [row['avg_score'] for row in performance_data]
+        
+        student_performance = conn.execute('''
+            SELECT u.first_name || ' ' || u.last_name as student_name, MAX(r.score * 100.0 / r.total_questions) as latest_score
+            FROM results r
+            JOIN users u ON r.user_id = u.id
+            WHERE u.is_admin = 0
+            GROUP BY u.id
+            ORDER BY latest_score DESC
+        ''').fetchall()
+
+        chart_labels = [row['student_name'] for row in student_performance]
+        chart_values = [row['latest_score'] for row in student_performance]
+        
         conn.close()
-        return render_template('admin/dashboard.html', student_count=student_count, quiz_count=quiz_count, avg_score=avg_score, chart_labels=json.dumps(chart_labels), chart_values=json.dumps(chart_values))
+        return render_template('admin/dashboard.html', 
+                               student_count=student_count, 
+                               quiz_count=quiz_count, 
+                               avg_score=avg_score,
+                               chart_labels=chart_labels,
+                               chart_values=chart_values)
     else:
         sets = conn.execute('SELECT * FROM question_sets').fetchall()
         recommendations = conn.execute('SELECT * FROM recommendations WHERE user_id = ? ORDER BY timestamp DESC', (get_user_id(),)).fetchall()
@@ -207,6 +223,13 @@ def edit_question(id):
 def student_history():
     if not is_admin(): return redirect(url_for('login'))
     conn = get_db_connection()
+    
+    # ** FIX IS HERE: Added queries for the stat cards **
+    student_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 0').fetchone()[0]
+    quiz_count = conn.execute('SELECT COUNT(*) FROM question_sets').fetchone()[0]
+    avg_score_data = conn.execute('SELECT AVG(score * 100.0 / total_questions) as avg_score FROM results').fetchone()
+    avg_score = avg_score_data['avg_score'] if avg_score_data and avg_score_data['avg_score'] else 0
+
     search_query = request.args.get('search', '')
     base_query = '''
         SELECT 
@@ -228,19 +251,20 @@ def student_history():
     history = []
     for row in history_raw:
         row_dict = dict(row)
-        # ** FIX STARTS HERE **
-        # Manually convert string timestamps to datetime objects if they are not already
         start_time = datetime.fromisoformat(row['time_start']) if isinstance(row['time_start'], str) else row['time_start']
         end_time = datetime.fromisoformat(row['time_end']) if isinstance(row['time_end'], str) else row['time_end']
-        
         row_dict['duration'] = format_duration(start_time, end_time)
         row_dict['time_start_formatted'] = start_time.strftime('%I:%M:%S %p') if start_time else "N/A"
         row_dict['time_end_formatted'] = end_time.strftime('%I:%M:%S %p') if end_time else "N/A"
         row_dict['date_formatted'] = end_time.strftime('%Y-%m-%d') if end_time else "N/A"
-        # ** FIX ENDS HERE **
         history.append(row_dict)
     conn.close()
-    return render_template('admin/history.html', history=history, search_query=search_query)
+    return render_template('admin/history.html', 
+                           history=history, 
+                           search_query=search_query,
+                           student_count=student_count,
+                           quiz_count=quiz_count,
+                           avg_score=avg_score)
 
 # --- Student Routes ---
 @app.route('/history')
@@ -250,22 +274,18 @@ def student_result_history():
     conn = get_db_connection()
     history_raw = conn.execute('''
         SELECT qs.title, r.score, r.total_questions, r.time_start, r.timestamp as time_end, r.id as result_id,
-               ROW_NUMBER() OVER(PARTITION BY r.set_id ORDER BY r.timestamp) as attempt_number
+               ROW_NUMBER() OVER(PARTITION BY r.user_id, r.set_id ORDER BY r.timestamp) as attempt_number
         FROM results r JOIN question_sets qs ON r.set_id = qs.id
         WHERE r.user_id = ? ORDER BY r.timestamp DESC
     ''', (get_user_id(),)).fetchall()
     history = []
     for row in history_raw:
         row_dict = dict(row)
-        # ** FIX STARTS HERE **
-        # Manually convert string timestamps to datetime objects if they are not already
         start_time = datetime.fromisoformat(row['time_start']) if isinstance(row['time_start'], str) else row['time_start']
         end_time = datetime.fromisoformat(row['time_end']) if isinstance(row['time_end'], str) else row['time_end']
-
         row_dict['duration'] = format_duration(start_time, end_time)
         row_dict['time_start_formatted'] = start_time.strftime('%I:%M:%S %p') if start_time else "N/A"
         row_dict['time_end_formatted'] = end_time.strftime('%I:%M:%S %p') if end_time else "N/A"
-        # ** FIX ENDS HERE **
         history.append(row_dict)
     conn.close()
     return render_template('student/history.html', history=history)

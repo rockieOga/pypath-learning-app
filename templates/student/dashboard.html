@@ -5,40 +5,38 @@
 {% block content %}
 <!-- Overall Proficiency -->
 {% if overall_proficiency %}
-<div class="mb-8 bg-white p-6 rounded-lg shadow-md">
-    <div class="flex flex-col md:flex-row items-center justify-between">
-        <div class="text-center md:text-left mb-4 md:mb-0">
-            <h3 class="text-2xl font-bold text-gray-800">Overall Proficiency</h3>
-            <p class="text-gray-500">Based on your latest quiz results</p>
+<div class="mb-8 bg-white p-6 rounded-lg shadow-md flex flex-col md:flex-row items-center justify-between">
+    <div class="text-center md:text-left mb-4 md:mb-0">
+        <h3 class="text-2xl font-bold text-gray-800">Overall Proficiency</h3>
+        <p class="text-gray-500">Based on your latest quiz results</p>
+    </div>
+    <div class="flex items-center space-x-4" data-anim-container>
+        <div class="text-5xl font-bold {{ overall_proficiency.color }} animate-percentage" data-target="{{ overall_proficiency.percentage }}">
+            0%
         </div>
-        <div class="flex items-center space-x-4">
-            <div class="text-5xl font-bold {{ overall_proficiency.color }}">
-                {{ overall_proficiency.percentage }}%
-            </div>
-            <div class="text-xl font-semibold {{ overall_proficiency.color }}">
-                {{ overall_proficiency.level }}
-            </div>
+        <div class="text-xl font-semibold {{ overall_proficiency.color }} proficiency-level opacity-0 transition-opacity duration-500">
+            {{ overall_proficiency.level }}
         </div>
     </div>
-    {% if percentile is not none %}
-    <div class="border-t mt-4 pt-4 text-center">
-        <p class="text-gray-600">You performed better than <strong class="text-sky-600 text-lg">{{ percentile }}%</strong> of other students.</p>
-    </div>
-    {% endif %}
 </div>
+{% if percentile is not none %}
+<div class="border-t -mt-8 bg-white p-4 rounded-b-lg shadow-md text-center">
+    <p class="text-gray-600">You performed better than <strong class="text-sky-600 text-lg animate-percentage" data-target="{{ percentile }}">0</strong>% of other students.</p>
+</div>
+{% endif %}
 {% endif %}
 
 <!-- Proficiency Report Section -->
 {% if proficiency %}
-<div class="mb-8">
+<div class="mb-8 mt-8">
     <h2 class="text-2xl font-semibold text-gray-800 mb-4">Topic Breakdown</h2>
     <div class="bg-white p-6 rounded-lg shadow-md">
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {% for item in proficiency %}
-            <div class="border border-gray-200 rounded-lg p-4 flex flex-col items-center text-center">
+            <div class="border border-gray-200 rounded-lg p-4 flex flex-col items-center text-center" data-anim-container>
                 <h4 class="font-bold text-gray-800">{{ item.topic }}</h4>
-                <p class="text-3xl font-bold my-2 {{ item.color }}">{{ item.percentage }}%</p>
-                <p class="text-sm font-semibold {{ item.color }} mb-3">{{ item.level }}</p>
+                <p class="text-3xl font-bold my-2 {{ item.color }} animate-percentage" data-target="{{ item.percentage }}">{{ item.percentage }}%</p>
+                <p class="text-sm font-semibold {{ item.color }} mb-3 proficiency-level opacity-0 transition-opacity duration-500">{{ item.level }}</p>
                 <a href="{{ item.study_link }}" target="_blank" class="mt-auto text-sm w-full text-center bg-sky-100 text-sky-700 font-semibold py-2 px-3 rounded-lg hover:bg-sky-200 transition">
                     Study Topic
                 </a>
@@ -83,4 +81,52 @@
         {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const counters = document.querySelectorAll('.animate-percentage');
+        
+        const animateCounter = (counter) => {
+            const target = +counter.getAttribute('data-target');
+            let current = 0;
+            const duration = 1000; // Animation duration in milliseconds
+            const stepTime = Math.abs(Math.floor(duration / target));
+
+            const updateCounter = () => {
+                const increment = target / (duration / 16); // Increment per frame
+                current += increment;
+
+                if (current < target) {
+                    if (counter.innerHTML.includes('%')) {
+                        counter.innerText = Math.ceil(current) + '%';
+                    } else {
+                        counter.innerText = Math.ceil(current);
+                    }
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    // Ensure final value is exact
+                    if (counter.innerHTML.includes('%')) {
+                        counter.innerText = target + '%';
+                    } else {
+                        counter.innerText = target;
+                    }
+                    
+                    // Find the parent container and fade in the proficiency level
+                    const container = counter.closest('[data-anim-container]');
+                    if (container) {
+                        const levelElement = container.querySelector('.proficiency-level');
+                        if (levelElement) {
+                            levelElement.classList.remove('opacity-0');
+                        }
+                    }
+                }
+            };
+            updateCounter();
+        };
+
+        counters.forEach(animateCounter);
+    });
+</script>
 {% endblock %}

@@ -7,10 +7,7 @@
     <!-- Search Form -->
     <form method="GET" action="{{ url_for('student_history') }}" class="mb-6">
         <div class="flex">
-            <input type="text" name="search" placeholder="Search by student name..." value="{{ search_query or '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-sky-500 focus:border-sky-500">
-            <button type="submit" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-r-lg hover:bg-sky-700">
-                <i data-lucide="search" class="h-5 w-5"></i>
-            </button>
+            <input type="text" name="search" placeholder="Search by student name..." value="{{ search_query or '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500">
         </div>
     </form>
 
@@ -19,24 +16,24 @@
         <table class="min-w-full bg-white">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt #</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz Title</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Start</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time End</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
                 {% for row in history %}
                 <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">{{ loop.index }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.first_name }} {{ row.last_name }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.title }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">{{ row.attempt_number }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.score }}/{{ row.total_questions }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.time_start_formatted }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.time_end_formatted }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.date_formatted }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.duration }}</td>
                 </tr>
                 {% else %}
@@ -48,4 +45,37 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        const tableBody = document.querySelector('tbody');
+        let debounceTimer;
+
+        searchInput.addEventListener('keyup', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const searchTerm = searchInput.value;
+                const url = new URL(window.location);
+                url.searchParams.set('search', searchTerm);
+
+                window.history.pushState({}, '', url);
+
+                fetch(url)
+                    .then(response => response.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newTbody = doc.querySelector('tbody');
+                        if (newTbody) {
+                            tableBody.innerHTML = newTbody.innerHTML;
+                        }
+                    })
+                    .catch(error => console.error('Error fetching search results:', error));
+            }, 300);
+        });
+    }
+</script>
 {% endblock %}
