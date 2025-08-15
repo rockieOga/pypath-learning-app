@@ -1,47 +1,38 @@
 {% extends "layout.html" %}
-{% block title %}Student History{% endblock %}
-{% block header %}Student Quiz History{% endblock %}
+{% block title %}Result History{% endblock %}
+{% block header %}Your Quiz History{% endblock %}
 
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
-    <!-- Search Form -->
-    <form method="GET" action="{{ url_for('student_history') }}" class="mb-6">
-        <div class="flex">
-            <input type="text" name="search" placeholder="Search by student name..." value="{{ search_query or '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-sky-500 focus:border-sky-500">
-            <button type="submit" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-r-lg hover:bg-sky-700">
-                <i data-lucide="search" class="h-5 w-5"></i>
-            </button>
-        </div>
-    </form>
-
-    <!-- Results Table -->
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz Title</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Start</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time End</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
                 {% for row in history %}
                 <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.first_name }} {{ row.last_name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.title }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.title }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">{{ row.attempt_number }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.score }}/{{ row.total_questions }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.time_start_formatted }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.time_end_formatted }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.duration }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="{{ url_for('results', result_id=row.result_id) }}" class="text-sky-600 hover:text-sky-900">View Details</a>
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">No history found.</td>
+                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">You have not completed any quizzes yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>

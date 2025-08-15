@@ -6,6 +6,7 @@ import io
 import json
 import uuid
 from contextlib import redirect_stdout
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -24,7 +25,7 @@ W3SCHOOLS_LINKS = {
 
 # --- Database Setup ---
 def get_db_connection():
-    conn = sqlite3.connect('pypath.db', check_same_thread=False)
+    conn = sqlite3.connect('pypath.db', check_same_thread=False, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -73,25 +74,27 @@ def calculate_proficiency(user_id, conn):
     return proficiency_analysis
 
 def calculate_percentile(user_id, conn):
-    """Calculates the student's percentile rank based on their latest score."""
     user_latest_result = conn.execute('SELECT (score * 100.0 / total_questions) as percentage FROM results WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1', (user_id,)).fetchone()
     if not user_latest_result: return None
     user_percentage = user_latest_result['percentage']
-
-    all_latest_scores = conn.execute('''
-        SELECT MAX(score * 100.0 / total_questions) as latest_percentage
-        FROM results r JOIN users u ON r.user_id = u.id
-        WHERE u.is_admin = 0 GROUP BY r.user_id
-    ''').fetchall()
-
+    all_latest_scores = conn.execute('SELECT MAX(score * 100.0 / total_questions) as latest_percentage FROM results r JOIN users u ON r.user_id = u.id WHERE u.is_admin = 0 GROUP BY r.user_id').fetchall()
     if not all_latest_scores: return 100
-
     total_students = len(all_latest_scores)
     scores_lower = sum(1 for row in all_latest_scores if row['latest_percentage'] < user_percentage)
-    
     if total_students == 0: return 100
     percentile = (scores_lower / total_students) * 100
     return round(percentile)
+
+def format_duration(start_time, end_time):
+    if not isinstance(start_time, datetime) or not isinstance(end_time, datetime):
+        return "N/A"
+    duration = end_time - start_time
+    total_seconds = int(duration.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours > 0: return f"{hours}h {minutes}m {seconds}s"
+    if minutes > 0: return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
 
 # --- Main Routes ---
 @app.route('/')
@@ -205,20 +208,59 @@ def student_history():
     if not is_admin(): return redirect(url_for('login'))
     conn = get_db_connection()
     search_query = request.args.get('search', '')
-    base_query = 'SELECT u.username, u.student_code, u.first_name, u.last_name, qs.title, r.score, r.total_questions, r.timestamp FROM results r JOIN users u ON u.id = r.user_id JOIN question_sets qs ON qs.id = r.set_id WHERE u.is_admin = 0'
+    base_query = '''
+        SELECT 
+            u.username, u.student_code, u.first_name, u.last_name, 
+            qs.title, r.score, r.total_questions, r.time_start, r.timestamp as time_end,
+            ROW_NUMBER() OVER(PARTITION BY r.user_id, r.set_id ORDER BY r.timestamp) as attempt_number
+        FROM results r
+        JOIN users u ON u.id = r.user_id
+        JOIN question_sets qs ON qs.id = r.set_id
+        WHERE u.is_admin = 0
+    '''
     params = []
     if search_query:
         base_query += ' AND (u.username LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)'
         params.extend([f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'])
     base_query += ' ORDER BY r.timestamp DESC'
-    history = conn.execute(base_query, params).fetchall()
+    history_raw = conn.execute(base_query, params).fetchall()
+    history = []
+    for row in history_raw:
+        row_dict = dict(row)
+        row_dict['duration'] = format_duration(row['time_start'], row['time_end'])
+        row_dict['time_start_formatted'] = row['time_start'].strftime('%I:%M:%S %p') if isinstance(row['time_start'], datetime) else "N/A"
+        row_dict['time_end_formatted'] = row['time_end'].strftime('%I:%M:%S %p') if isinstance(row['time_end'], datetime) else "N/A"
+        row_dict['date_formatted'] = row['time_end'].strftime('%Y-%m-%d') if isinstance(row['time_end'], datetime) else "N/A"
+        history.append(row_dict)
     conn.close()
     return render_template('admin/history.html', history=history, search_query=search_query)
 
 # --- Student Routes ---
+@app.route('/history')
+def student_result_history():
+    if not get_user_id() or is_admin():
+        return redirect(url_for('login'))
+    conn = get_db_connection()
+    history_raw = conn.execute('''
+        SELECT qs.title, r.score, r.total_questions, r.time_start, r.timestamp as time_end, r.id as result_id,
+               ROW_NUMBER() OVER(PARTITION BY r.set_id ORDER BY r.timestamp) as attempt_number
+        FROM results r JOIN question_sets qs ON r.set_id = qs.id
+        WHERE r.user_id = ? ORDER BY r.timestamp DESC
+    ''', (get_user_id(),)).fetchall()
+    history = []
+    for row in history_raw:
+        row_dict = dict(row)
+        row_dict['duration'] = format_duration(row['time_start'], row['time_end'])
+        row_dict['time_start_formatted'] = row['time_start'].strftime('%I:%M:%S %p') if isinstance(row['time_start'], datetime) else "N/A"
+        row_dict['time_end_formatted'] = row['time_end'].strftime('%I:%M:%S %p') if isinstance(row['time_end'], datetime) else "N/A"
+        history.append(row_dict)
+    conn.close()
+    return render_template('student/history.html', history=history)
+
 @app.route('/quiz/<int:set_id>')
 def quiz(set_id):
     if not get_user_id(): return redirect(url_for('login'))
+    session['quiz_start_time'] = datetime.now().isoformat()
     conn = get_db_connection()
     questions = conn.execute('SELECT q.* FROM questions q JOIN set_questions sq ON q.id = sq.question_id WHERE sq.set_id = ?', (set_id,)).fetchall()
     set_info = conn.execute('SELECT * FROM question_sets WHERE id = ?', (set_id,)).fetchone()
@@ -228,11 +270,14 @@ def quiz(set_id):
 @app.route('/submit_quiz/<int:set_id>', methods=['POST'])
 def submit_quiz(set_id):
     if not get_user_id(): return redirect(url_for('login'))
+    start_time_str = session.pop('quiz_start_time', None)
+    start_time = datetime.fromisoformat(start_time_str) if start_time_str else datetime.now()
     conn = get_db_connection()
     questions = conn.execute('SELECT q.* FROM questions q JOIN set_questions sq ON q.id = sq.question_id WHERE sq.set_id = ?', (set_id,)).fetchall()
     score, incorrect_topics = 0, []
     result_cursor = conn.cursor()
-    result_cursor.execute('INSERT INTO results (user_id, set_id, score, total_questions) VALUES (?, ?, 0, ?)', (get_user_id(), set_id, len(questions)))
+    result_cursor.execute('INSERT INTO results (user_id, set_id, score, total_questions, time_start) VALUES (?, ?, 0, ?, ?)',
+                          (get_user_id(), set_id, len(questions), start_time))
     result_id = result_cursor.lastrowid
     for q in questions:
         user_answer = request.form.get(f'question_{q["id"]}')
@@ -241,7 +286,7 @@ def submit_quiz(set_id):
         if is_correct: score += 1
         else: incorrect_topics.append(q['topic'])
         conn.execute('INSERT INTO student_answers (result_id, question_id, user_answer, is_correct) VALUES (?, ?, ?, ?)', (result_id, q['id'], user_answer, is_correct))
-    conn.execute('UPDATE results SET score = ? WHERE id = ?', (score, result_id))
+    conn.execute('UPDATE results SET score = ?, timestamp = ? WHERE id = ?', (score, datetime.now(), result_id))
     if incorrect_topics:
         for topic in set(incorrect_topics):
             conn.execute('INSERT INTO recommendations (user_id, recommendation_text) VALUES (?, ?)', (get_user_id(), f"You seem to be struggling with {topic}. We recommend reviewing this topic."))

@@ -59,7 +59,8 @@ CREATE TABLE results (
     set_id INTEGER NOT NULL,
     score INTEGER NOT NULL,
     total_questions INTEGER NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    time_start DATETIME NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, -- This will serve as time_end
     FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (set_id) REFERENCES question_sets (id)
 );

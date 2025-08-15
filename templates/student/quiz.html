@@ -3,6 +3,12 @@
 {% block header %}{{ set_info.title }}{% endblock %}
 
 {% block content %}
+<!-- Timer Display -->
+<div class="fixed top-20 right-6 bg-white p-3 rounded-lg shadow-lg border text-center z-10 w-36">
+    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Time Elapsed</p>
+    <div id="timer" class="text-2xl font-bold text-sky-700 font-mono">00:00</div>
+</div>
+
 <div class="max-w-4xl mx-auto">
     <div class="bg-white p-8 rounded-xl shadow-lg">
         <p class="text-center text-gray-600 mb-8">{{ set_info.description }}</p>
@@ -47,4 +53,25 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const timerElement = document.getElementById('timer');
+    let seconds = 0;
+
+    function formatTime(sec) {
+        const minutes = Math.floor(sec / 60);
+        const remainingSeconds = sec % 60;
+        const formattedMinutes = String(minutes).padStart(2, '0');
+        const formattedSeconds = String(remainingSeconds).padStart(2, '0');
+        return `${formattedMinutes}:${formattedSeconds}`;
+    }
+
+    // Update the timer every second
+    const timerInterval = setInterval(() => {
+        seconds++;
+        timerElement.textContent = formatTime(seconds);
+    }, 1000);
+</script>
 {% endblock %}
