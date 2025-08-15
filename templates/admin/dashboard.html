@@ -1,0 +1,93 @@
+{% extends "layout.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block header %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Stat Cards -->
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-sky-100 p-3 rounded-full">
+            <i data-lucide="users" class="h-6 w-6 text-sky-600"></i>
+        </div>
+        <div class="ml-4">
+            <p class="text-sm text-gray-500">Total Students</p>
+            <p class="text-2xl font-semibold">{{ student_count }}</p>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-green-100 p-3 rounded-full">
+            <i data-lucide="file-text" class="h-6 w-6 text-green-600"></i>
+        </div>
+        <div class="ml-4">
+            <p class="text-sm text-gray-500">Total Quizzes</p>
+            <p class="text-2xl font-semibold">{{ quiz_count }}</p>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-yellow-100 p-3 rounded-full">
+            <i data-lucide="graduation-cap" class="h-6 w-6 text-yellow-600"></i>
+        </div>
+        <div class="ml-4">
+            <p class="text-sm text-gray-500">Average Score</p>
+            <p class="text-2xl font-semibold">{{ "%.2f"|format(avg_score) }}%</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+    <h3 class="text-xl font-semibold mb-4">Overall Performance Over Time</h3>
+    <!-- Data is now passed via data attributes to prevent JS syntax errors -->
+    <canvas id="performanceChart" 
+            data-labels="{{ chart_labels | safe }}" 
+            data-values="{{ chart_values | safe }}">
+    </canvas>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // This script is now more robust. It reads data from the canvas element.
+    const chartCanvas = document.getElementById('performanceChart');
+    if (chartCanvas) {
+        // Parse the data from the data attributes
+        const labels = JSON.parse(chartCanvas.dataset.labels || '[]');
+        const values = JSON.parse(chartCanvas.dataset.values || '[]');
+
+        const ctx = chartCanvas.getContext('2d');
+        const performanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Average Score (%)',
+                    data: values,
+                    backgroundColor: 'rgba(56, 189, 248, 0.2)',
+                    borderColor: 'rgba(56, 189, 248, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Daily Average Quiz Scores'
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

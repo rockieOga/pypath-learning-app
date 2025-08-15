@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}Quiz Results{% endblock %}
+{% block header %}Quiz Results{% endblock %}
+
+{% block content %}
+<div class="bg-white p-8 rounded-xl shadow-lg text-center max-w-4xl mx-auto">
+    <h2 class="text-3xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
+    <p class="text-lg text-gray-600 mb-6">Here is a summary of your performance.</p>
+    
+    <!-- Overall Score -->
+    <div class="mb-8">
+        <p class="text-5xl font-bold text-sky-600">{{ result.score }} / {{ result.total_questions }}</p>
+        <p class="text-xl font-semibold text-gray-700">Correct Answers</p>
+    </div>
+
+    <!-- Proficiency Breakdown -->
+    {% if proficiency %}
+    <div class="border-t pt-6">
+        <h3 class="text-2xl font-bold text-gray-800 mb-4">Topic Proficiency Breakdown</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 text-center">
+            {% for item in proficiency %}
+            <div class="border border-gray-200 rounded-lg p-4 flex flex-col">
+                <h4 class="font-bold text-gray-800">{{ item.topic }}</h4>
+                <p class="text-3xl font-bold my-2 {{ item.color }}">{{ item.percentage }}%</p>
+                <p class="text-sm font-semibold {{ item.color }} mb-3">{{ item.level }}</p>
+                <a href="{{ item.study_link }}" target="_blank" class="mt-auto text-sm w-full text-center bg-sky-100 text-sky-700 font-semibold py-2 px-3 rounded-lg hover:bg-sky-200 transition">
+                    Study Topic
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('dashboard') }}" class="mt-8 inline-block bg-sky-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:bg-sky-700 transition-transform transform hover:scale-105">
+        Back to Dashboard
+    </a>
+</div>
+{% endblock %}

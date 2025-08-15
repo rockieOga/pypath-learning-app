@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block title %}Your Dashboard{% endblock %}
+{% block header %}Student Dashboard{% endblock %}
+
+{% block content %}
+<!-- Proficiency Report Section -->
+{% if proficiency %}
+<div class="mb-8">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Your Latest Proficiency Report</h2>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% for item in proficiency %}
+            <div class="border border-gray-200 rounded-lg p-4 flex flex-col items-center text-center">
+                <h4 class="font-bold text-gray-800">{{ item.topic }}</h4>
+                <p class="text-3xl font-bold my-2 {{ item.color }}">{{ item.percentage }}%</p>
+                <p class="text-sm font-semibold {{ item.color }} mb-3">{{ item.level }}</p>
+                <a href="{{ item.study_link }}" target="_blank" class="mt-auto text-sm w-full text-center bg-sky-100 text-sky-700 font-semibold py-2 px-3 rounded-lg hover:bg-sky-200 transition">
+                    Study Topic
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recommendations Section -->
+{% if recommendations %}
+<div class="mb-8">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Personalized Recommendations</h2>
+    <div class="bg-white p-6 rounded-lg shadow-md space-y-4">
+        {% for rec in recommendations %}
+        <div class="flex items-start p-4 bg-sky-50 border-l-4 border-sky-500 rounded-r-lg">
+            <i data-lucide="lightbulb" class="h-5 w-5 text-sky-600 mr-3 mt-1"></i>
+            <p class="text-gray-700">{{ rec.recommendation_text }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Available Quizzes Section -->
+<div>
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Available Quizzes</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for set in sets %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
+            <div class="p-6">
+                <h3 class="text-xl font-bold text-gray-900 mb-2">{{ set.title }}</h3>
+                <p class="text-gray-600 mb-4">{{ set.description }}</p>
+                <a href="{{ url_for('quiz', set_id=set.id) }}" class="inline-block w-full text-center bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">
+                    Start Quiz
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <p>No quizzes are available at the moment.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
