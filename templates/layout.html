@@ -7,17 +7,22 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide-react@0.378.0/dist/lucide-react.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Updated Google Fonts link for a cleaner, professional font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Updated font-family to Roboto and set a smaller base font size */
-        html {
-            font-size: 14px; /* This makes all rem-based text smaller */
-        }
-        body { 
-            font-family: 'Roboto', sans-serif; 
-        }
+        html { font-size: 14px; }
+        body { font-family: 'Roboto', sans-serif; }
         .icon { width: 20px; height: 20px; stroke-width: 2; }
+        /* Styles for the modal and loader */
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .loader {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -51,9 +56,10 @@
                         <i data-lucide="history" class="icon"></i><span class="ml-3">Result History</span>
                     </a>
                     {% endif %}
-                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 mt-auto text-gray-600 rounded-lg hover:bg-red-200 hover:text-red-700">
+                    <!-- Updated Logout Button -->
+                    <button id="logoutBtn" class="flex items-center px-4 py-2 mt-auto text-gray-600 rounded-lg hover:bg-red-200 hover:text-red-700 w-full text-left">
                         <i data-lucide="log-out" class="icon"></i><span class="ml-3">Logout</span>
-                    </a>
+                    </button>
                 </nav>
             </div>
         </div>
@@ -67,22 +73,56 @@
                 </div>
             </header>
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-6">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                        <div class="p-4 mb-4 text-sm text-{{ 'green' if category == 'success' else 'red' }}-700 bg-{{ 'green' if category == 'success' else 'red' }}-100 rounded-lg" role="alert">
-                            {{ message }}
-                        </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
                 {% block content %}{% endblock %}
             </main>
         </div>
     </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 pointer-events-none">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+            <h3 class="text-lg font-bold mb-4">Confirm Logout</h3>
+            <p class="text-gray-600 mb-6">Are you sure you want to log out?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="cancelLogout" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-300">Cancel</button>
+                <button id="confirmLogout" class="bg-red-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-600">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white flex items-center justify-center z-50 hidden">
+        <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-32 w-32"></div>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
+
+        // Logout Logic
+        const logoutBtn = document.getElementById('logoutBtn');
+        const logoutModal = document.getElementById('logoutModal');
+        const cancelLogout = document.getElementById('cancelLogout');
+        const confirmLogout = document.getElementById('confirmLogout');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        logoutBtn.addEventListener('click', () => {
+            logoutModal.classList.remove('opacity-0', 'pointer-events-none');
+        });
+
+        cancelLogout.addEventListener('click', () => {
+            logoutModal.classList.add('opacity-0', 'pointer-events-none');
+        });
+
+        confirmLogout.addEventListener('click', () => {
+            logoutModal.classList.add('opacity-0', 'pointer-events-none');
+            loadingOverlay.classList.remove('hidden');
+
+            // Wait for animation before redirecting
+            setTimeout(() => {
+                window.location.href = "{{ url_for('logout') }}";
+            }, 1000); // 1 second delay
+        });
     </script>
     {% block scripts %}{% endblock %}
 </body>
