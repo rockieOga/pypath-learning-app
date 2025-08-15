@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import sqlite3
 import os
 import bcrypt
+import io
+from contextlib import redirect_stdout
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -22,11 +24,10 @@ def init_db():
         
         # Add a default admin user
         cursor = conn.cursor()
-        # Check if admin already exists
         cursor.execute('SELECT * FROM users WHERE username = ?', ('admin',))
         admin_user = cursor.fetchone()
         if not admin_user:
-            hashed_password = bcrypt.hashpw('admin'.encode('utf-8'), bcrypt.gensalt())
+            hashed_password = bcrypt.hashpw('rockieOga'.encode('utf-8'), bcrypt.gensalt())
             cursor.execute('INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)', 
                            ('admin', hashed_password, 1))
 
@@ -48,8 +49,6 @@ def register():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-
-        # Check if username already exists
         cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
         user = cursor.fetchone()
 
@@ -58,10 +57,7 @@ def register():
             conn.close()
             return redirect(url_for('register'))
 
-        # Hash the password
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-
-        # Insert new user into the database
         cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
         conn.commit()
         conn.close()
@@ -77,12 +73,16 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        is_admin_login = 'is_admin' in request.form
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Retrieve user from the database
-        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+        if is_admin_login:
+            cursor.execute('SELECT * FROM users WHERE username = ? AND is_admin = 1', (username,))
+        else:
+            cursor.execute('SELECT * FROM users WHERE username = ? AND is_admin = 0', (username,))
+        
         user = cursor.fetchone()
         conn.close()
 
@@ -124,7 +124,7 @@ def quiz():
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-    questions = conn.execute('SELECT * FROM questions').fetchall()
+    questions = conn.execute('SELECT * FROM questions ORDER BY RANDOM()').fetchall()
     conn.close()
     return render_template('quiz.html', questions=questions)
 
@@ -136,12 +136,38 @@ def submit_quiz():
 
     score = 0
     conn = get_db_connection()
-    questions = conn.execute('SELECT id, correct_answer FROM questions').fetchall()
+    questions = conn.execute('SELECT * FROM questions').fetchall()
     
     for question in questions:
         user_answer = request.form.get(f'question_{question["id"]}')
-        if user_answer == question['correct_answer']:
-            score += 1
+        
+        if question['question_type'] == 'multiple_choice':
+            if user_answer == question['correct_answer']:
+                score += 1
+        
+        elif question['question_type'] == 'coding':
+            user_code = user_answer
+            if not user_code:
+                continue
+
+            # Safely capture the output of the user's code
+            # WARNING: exec() is powerful and can be a security risk if not handled carefully.
+            # Here, we are capturing stdout and have no file system or network access,
+            # which mitigates some risk, but a sandboxed environment is the best practice.
+            f = io.StringIO()
+            try:
+                with redirect_stdout(f):
+                    exec(user_code)
+                output = f.getvalue()
+                
+                # Compare the captured output with the expected output
+                if output.strip() == question['correct_code_output'].strip():
+                    score += 1
+
+            except Exception as e:
+                # If the user's code has an error, it's incorrect.
+                print(f"Error executing user code: {e}")
+                continue
 
     # Store the result
     conn.execute('INSERT INTO results (user_id, score) VALUES (?, ?)', (session['user_id'], score))
@@ -168,10 +194,10 @@ def results():
 
     # Simple adaptive logic
     learning_modules = []
-    if result['score'] / total_questions < 0.5:
-        learning_modules.append("Learning Module 1: Python Basics")
+    if result['score'] / total_questions < 0.7:
+        learning_modules.append("Learning Module 1: Python Fundamentals")
     else:
-        learning_modules.append("Learning Module 5: Advanced Python")
+        learning_modules.append("Learning Module 5: Advanced Python Concepts")
 
     return render_template('results.html', result=result, total_questions=total_questions, learning_modules=learning_modules)
 
@@ -183,11 +209,11 @@ def admin_dashboard():
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-    # Join users and results tables to get student names and their scores
     all_results = conn.execute('''
         SELECT u.username, r.score, r.timestamp 
         FROM results r
         JOIN users u ON u.id = r.user_id
+        WHERE u.is_admin = 0
         ORDER BY r.timestamp DESC
     ''').fetchall()
     
