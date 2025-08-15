@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyPath: Adaptive Python Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div class="min-h-screen flex flex-col items-center justify-center bg-cover bg-center" style="background-image: url('https://placehold.co/1920x1080/e0f2fe/0c4a6e?text=PyPath');">
+        <div class="bg-white bg-opacity-90 p-8 md:p-12 rounded-2xl shadow-2xl text-center max-w-2xl mx-4">
+            <h1 class="text-4xl md:text-5xl font-bold text-sky-800 mb-4">Welcome to PyPath</h1>
+            <p class="text-lg text-gray-600 mb-8">Your personalized roadmap to mastering Python. Start with a quick assessment and get a learning path tailored just for you.</p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="{{ url_for('login') }}" class="bg-sky-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:bg-sky-700 transition-transform transform hover:scale-105">Login</a>
+                <a href="{{ url_for('register') }}" class="bg-gray-200 text-gray-800 font-semibold py-3 px-8 rounded-lg shadow-md hover:bg-gray-300 transition-transform transform hover:scale-105">Register</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
