@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block title %}Edit Question{% endblock %}
+{% block header %}Edit Question #{{ question.id }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
+    <form method="POST" action="{{ url_for('edit_question', id=question.id) }}" class="space-y-6">
+        <div>
+            <label for="question_text" class="block text-sm font-medium text-gray-700">Question Text</label>
+            <textarea id="question_text" name="question_text" rows="4" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500">{{ question.question_text }}</textarea>
+        </div>
+
+        <div>
+            <label for="topic" class="block text-sm font-medium text-gray-700">Topic</label>
+            <input type="text" id="topic" name="topic" value="{{ question.topic }}" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500">
+        </div>
+
+        <!-- In a full version, you would have fields to edit options, answers, etc. -->
+        <!-- This is simplified for now to just update the text and topic. -->
+
+        <div class="flex justify-end space-x-4">
+            <a href="{{ url_for('admin_questions') }}" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-300">
+                Cancel
+            </a>
+            <button type="submit" class="bg-sky-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-sky-700">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

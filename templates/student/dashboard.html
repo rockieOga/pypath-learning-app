@@ -3,10 +3,35 @@
 {% block header %}Student Dashboard{% endblock %}
 
 {% block content %}
+<!-- Overall Proficiency -->
+{% if overall_proficiency %}
+<div class="mb-8 bg-white p-6 rounded-lg shadow-md">
+    <div class="flex flex-col md:flex-row items-center justify-between">
+        <div class="text-center md:text-left mb-4 md:mb-0">
+            <h3 class="text-2xl font-bold text-gray-800">Overall Proficiency</h3>
+            <p class="text-gray-500">Based on your latest quiz results</p>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="text-5xl font-bold {{ overall_proficiency.color }}">
+                {{ overall_proficiency.percentage }}%
+            </div>
+            <div class="text-xl font-semibold {{ overall_proficiency.color }}">
+                {{ overall_proficiency.level }}
+            </div>
+        </div>
+    </div>
+    {% if percentile is not none %}
+    <div class="border-t mt-4 pt-4 text-center">
+        <p class="text-gray-600">You performed better than <strong class="text-sky-600 text-lg">{{ percentile }}%</strong> of other students.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Proficiency Report Section -->
 {% if proficiency %}
 <div class="mb-8">
-    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Your Latest Proficiency Report</h2>
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Topic Breakdown</h2>
     <div class="bg-white p-6 rounded-lg shadow-md">
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {% for item in proficiency %}
