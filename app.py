@@ -212,6 +212,7 @@ def student_history():
         SELECT 
             u.username, u.student_code, u.first_name, u.last_name, 
             qs.title, r.score, r.total_questions, r.time_start, r.timestamp as time_end,
+            r.id as result_id,
             ROW_NUMBER() OVER(PARTITION BY r.user_id, r.set_id ORDER BY r.timestamp) as attempt_number
         FROM results r
         JOIN users u ON u.id = r.user_id
@@ -227,10 +228,16 @@ def student_history():
     history = []
     for row in history_raw:
         row_dict = dict(row)
-        row_dict['duration'] = format_duration(row['time_start'], row['time_end'])
-        row_dict['time_start_formatted'] = row['time_start'].strftime('%I:%M:%S %p') if isinstance(row['time_start'], datetime) else "N/A"
-        row_dict['time_end_formatted'] = row['time_end'].strftime('%I:%M:%S %p') if isinstance(row['time_end'], datetime) else "N/A"
-        row_dict['date_formatted'] = row['time_end'].strftime('%Y-%m-%d') if isinstance(row['time_end'], datetime) else "N/A"
+        # ** FIX STARTS HERE **
+        # Manually convert string timestamps to datetime objects if they are not already
+        start_time = datetime.fromisoformat(row['time_start']) if isinstance(row['time_start'], str) else row['time_start']
+        end_time = datetime.fromisoformat(row['time_end']) if isinstance(row['time_end'], str) else row['time_end']
+        
+        row_dict['duration'] = format_duration(start_time, end_time)
+        row_dict['time_start_formatted'] = start_time.strftime('%I:%M:%S %p') if start_time else "N/A"
+        row_dict['time_end_formatted'] = end_time.strftime('%I:%M:%S %p') if end_time else "N/A"
+        row_dict['date_formatted'] = end_time.strftime('%Y-%m-%d') if end_time else "N/A"
+        # ** FIX ENDS HERE **
         history.append(row_dict)
     conn.close()
     return render_template('admin/history.html', history=history, search_query=search_query)
@@ -250,9 +257,15 @@ def student_result_history():
     history = []
     for row in history_raw:
         row_dict = dict(row)
-        row_dict['duration'] = format_duration(row['time_start'], row['time_end'])
-        row_dict['time_start_formatted'] = row['time_start'].strftime('%I:%M:%S %p') if isinstance(row['time_start'], datetime) else "N/A"
-        row_dict['time_end_formatted'] = row['time_end'].strftime('%I:%M:%S %p') if isinstance(row['time_end'], datetime) else "N/A"
+        # ** FIX STARTS HERE **
+        # Manually convert string timestamps to datetime objects if they are not already
+        start_time = datetime.fromisoformat(row['time_start']) if isinstance(row['time_start'], str) else row['time_start']
+        end_time = datetime.fromisoformat(row['time_end']) if isinstance(row['time_end'], str) else row['time_end']
+
+        row_dict['duration'] = format_duration(start_time, end_time)
+        row_dict['time_start_formatted'] = start_time.strftime('%I:%M:%S %p') if start_time else "N/A"
+        row_dict['time_end_formatted'] = end_time.strftime('%I:%M:%S %p') if end_time else "N/A"
+        # ** FIX ENDS HERE **
         history.append(row_dict)
     conn.close()
     return render_template('student/history.html', history=history)

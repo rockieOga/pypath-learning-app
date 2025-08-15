@@ -8,6 +8,7 @@
         <table class="min-w-full bg-white">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz Title</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
@@ -20,6 +21,7 @@
             <tbody class="divide-y divide-gray-200">
                 {% for row in history %}
                 <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">{{ row.result_id }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.title }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">{{ row.attempt_number }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.score }}/{{ row.total_questions }}</td>
@@ -32,7 +34,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">You have not completed any quizzes yet.</td>
+                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">You have not completed any quizzes yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>
