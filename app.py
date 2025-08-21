@@ -5,6 +5,9 @@ import bcrypt
 import json
 import uuid
 from datetime import datetime
+from io import StringIO
+from contextlib import redirect_stdout
+import traceback
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -209,10 +212,6 @@ def dashboard():
         pass_rate = (passed_count / total_students_with_scores) * 100 if total_students_with_scores > 0 else 0
         avg_score = sum(row['latest_score'] for row in latest_scores) / total_students_with_scores if total_students_with_scores > 0 else 0
 
-        chart_labels = [row['student_name'] for row in latest_scores]
-        chart_values = [row['latest_score'] for row in latest_scores]
-        
-        # New query for topic popularity chart
         topic_popularity = conn.execute('''
             SELECT topic, COUNT(DISTINCT user_id) as student_count
             FROM student_topic_mastery
@@ -222,7 +221,7 @@ def dashboard():
         
         topic_chart_labels = [row['topic'] for row in topic_popularity]
         topic_chart_values = [row['student_count'] for row in topic_popularity]
-
+        
         conn.close()
         return render_template('admin/dashboard.html', 
                                student_count=student_count, 
@@ -231,8 +230,6 @@ def dashboard():
                                passed_count=passed_count,
                                failed_count=failed_count,
                                pass_rate=pass_rate,
-                               chart_labels=chart_labels,
-                               chart_values=chart_values,
                                topic_chart_labels=topic_chart_labels,
                                topic_chart_values=topic_chart_values)
     else:
@@ -249,12 +246,25 @@ def dashboard():
 
         user_data = dict(user)
         user_data['next_level_xp'] = XP_TO_LEVEL_UP
+        
+        history_data = conn.execute('''
+            SELECT score, total_questions
+            FROM results
+            WHERE user_id = ?
+            ORDER BY timestamp ASC
+            LIMIT 5
+        ''', (get_user_id(),)).fetchall()
+        
+        history_labels = [f"Attempt {i+1}" for i in range(len(history_data))]
+        history_scores = [(row['score'] / row['total_questions']) * 100 for row in history_data]
 
         conn.close()
         return render_template('student/dashboard.html', 
                                user=user_data, 
                                sets=sets, 
-                               proficiency=proficiency)
+                               proficiency=proficiency,
+                               history_labels=history_labels,
+                               history_scores=history_scores)
 
 # --- Admin Routes ---
 @app.route('/admin/questions')
@@ -264,6 +274,25 @@ def admin_questions():
     questions = conn.execute('SELECT * FROM questions').fetchall()
     conn.close()
     return render_template('admin/questions.html', questions=questions)
+
+@app.route('/admin/questions/add', methods=['GET', 'POST'])
+def add_question():
+    if not is_admin(): return redirect(url_for('login'))
+    if request.method == 'POST':
+        conn = get_db_connection()
+        conn.execute('''
+            INSERT INTO questions (question_text, question_type, topic, option_a, option_b, option_c, option_d, correct_answer, correct_code_output)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            request.form['question_text'], request.form['question_type'], request.form['topic'],
+            request.form.get('option_a'), request.form.get('option_b'), request.form.get('option_c'), request.form.get('option_d'),
+            request.form.get('correct_answer'), request.form.get('correct_code_output')
+        ))
+        conn.commit()
+        conn.close()
+        flash('Question added successfully!', 'success')
+        return redirect(url_for('admin_questions'))
+    return render_template('admin/add_question.html')
 
 @app.route('/admin/questions/edit/<int:id>', methods=['GET', 'POST'])
 def edit_question(id):

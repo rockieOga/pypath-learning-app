@@ -6,31 +6,31 @@
 <div class="bg-white p-6 rounded-lg shadow-md">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-semibold">All Questions</h2>
-        <!-- This button could be used to trigger a modal for adding new questions in a future update -->
-        <button class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">
+        <a href="{{ url_for('add_question') }}" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 flex items-center">
+            <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
             Add New Question
-        </button>
+        </a>
     </div>
 
     <!-- Questions Table -->
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white">
-            <thead class="bg-gray-50">
+            <thead class="bg-slate-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Question Text</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Question Text</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Topic</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-slate-200">
                 {% for question in questions %}
                 <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ question.id }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ question.question_text[:50] }}...</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ question.topic }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ question.id }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ question.question_text[:50] }}...</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ question.topic }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-blue-100 text-blue-800' if question.question_type == 'multiple_choice' else 'bg-purple-100 text-purple-800' }}">
                             {{ question.question_type.replace('_', ' ') | capitalize }}
                         </span>
@@ -41,7 +41,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">No questions found in the bank.</td>
+                    <td colspan="5" class="px-6 py-4 text-center text-slate-500">No questions found in the bank.</td>
                 </tr>
                 {% endfor %}
             </tbody>

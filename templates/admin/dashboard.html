@@ -34,7 +34,7 @@
     </div>
 </div>
 
-<!-- New Pass/Fail Analytics Section -->
+<!-- Pass/Fail Analytics Section -->
 <div class="mt-8">
     <h3 class="text-xl font-semibold mb-4 text-slate-800">Student Performance Summary</h3>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -68,17 +68,28 @@
     </div>
 </div>
 
-<!-- Pass Rate Chart -->
-<div class="mt-8 bg-white p-6 rounded-lg shadow-md">
-    <h3 class="text-xl font-semibold mb-4">Pass vs. Fail Distribution</h3>
-    <div class="h-80 flex justify-center">
-        <canvas id="passFailChart"></canvas>
+<!-- Charts Section -->
+<div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Pass Rate Chart -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold mb-4">Pass vs. Fail Distribution</h3>
+        <div class="h-80 flex justify-center">
+            <canvas id="passFailChart"></canvas>
+        </div>
+    </div>
+    <!-- Topic Popularity Chart -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold mb-4">Topic Engagement</h3>
+        <div class="h-80">
+            <canvas id="topicPopularityChart" data-labels='{{ topic_chart_labels | tojson | safe }}' data-values='{{ topic_chart_values | tojson | safe }}'></canvas>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // Pass/Fail Chart
     const passFailCanvas = document.getElementById('passFailChart');
     if (passFailCanvas) {
         const passedCount = {{ passed_count }};
@@ -106,13 +117,46 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Student Pass/Fail Distribution'
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Student Pass/Fail Distribution' }
+                }
+            }
+        });
+    }
+
+    // Topic Popularity Chart
+    const topicCanvas = document.getElementById('topicPopularityChart');
+    if (topicCanvas) {
+        const labels = JSON.parse(topicCanvas.dataset.labels || '[]');
+        const values = JSON.parse(topicCanvas.dataset.values || '[]');
+
+        new Chart(topicCanvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Number of Students',
+                    data: values,
+                    backgroundColor: 'rgba(14, 165, 233, 0.6)',
+                    borderColor: 'rgba(14, 165, 233, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
                     }
+                },
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Number of Students Who Attempted Each Topic' }
                 }
             }
         });

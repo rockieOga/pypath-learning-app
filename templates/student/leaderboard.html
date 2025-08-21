@@ -13,24 +13,37 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Player</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Level</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">XP</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Attempts</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
                 {% for player in leaderboard %}
                 <tr class="{% if player.id == session.user_id %}bg-sky-100{% endif %}">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-700">{{ loop.index }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-700">
+                        <div class="flex items-center">
+                            <span class="w-6 text-center">{{ loop.index }}</span>
+                        </div>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 flex items-center">
                         <img src="{{ player.profile_image or 'https://placehold.co/40x40/1e293b/94a3b8?text=' + (player.first_name[0] if player.first_name else 'P') }}" alt="Avatar" class="w-10 h-10 rounded-full mr-4 object-cover">
-                        {{ player.first_name }} {{ player.last_name }}
+                        <span>{{ player.first_name }} {{ player.last_name }}</span>
+                        {% if loop.index == 1 %}
+                            <i data-lucide="award" class="w-5 h-5 text-yellow-400 ml-2"></i>
+                        {% elif loop.index == 2 %}
+                            <i data-lucide="award" class="w-5 h-5 text-slate-400 ml-2"></i>
+                        {% elif loop.index == 3 %}
+                            <i data-lucide="award" class="w-5 h-5 text-orange-400 ml-2"></i>
+                        {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                         <span class="font-bold">Level {{ player.level }}</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ player.xp }} XP</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ player.attempt_count }}</td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="4" class="px-6 py-4 text-center text-slate-500">No student data available.</td>
+                    <td colspan="5" class="px-6 py-4 text-center text-slate-500">No student data available.</td>
                 </tr>
                 {% endfor %}
             </tbody>

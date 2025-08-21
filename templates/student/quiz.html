@@ -13,9 +13,9 @@
     <div class="bg-white p-8 rounded-xl shadow-lg">
         <p class="text-center text-gray-600 mb-8">{{ set_info.description }}</p>
         
-        <form action="{{ url_for('submit_quiz', set_id=set_info.id) }}" method="POST" class="space-y-8">
+        <form id="quizForm" action="{{ url_for('submit_quiz', set_id=set_info.id) }}" method="POST" class="space-y-8">
             {% for question in questions %}
-            <div class="border-t pt-6">
+            <div class="border-t pt-6 question-block" data-question-id="{{ question.id }}">
                 <p class="text-lg font-semibold text-gray-800 mb-4">{{ loop.index }}. {{ question.question_text }}</p>
                 
                 {% if question.question_type == 'multiple_choice' %}
@@ -38,15 +38,22 @@
                     </label>
                 </div>
                 {% elif question.question_type == 'coding' %}
-                <div>
-                    <textarea name="question_{{ question.id }}" rows="6" class="mt-1 block w-full px-4 py-2 font-mono text-sm border border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500" placeholder="Write your Python code here..."></textarea>
+                <div class="coding-question-container" data-question-id="{{ question.id }}">
+                    <div class="h-64 mb-4 border rounded-md overflow-hidden">
+                        <textarea id="editor-{{ question.id }}"></textarea>
+                    </div>
+                    <div class="flex justify-between items-start gap-4">
+                        <button type="button" class="run-code-btn bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-emerald-600">Run Code</button>
+                        <pre class="output-console bg-slate-900 text-white text-sm p-2 rounded-md w-2/3 h-24 overflow-y-auto whitespace-pre-wrap"></pre>
+                    </div>
+                    <textarea name="question_{{ question.id }}" class="hidden-code-input hidden"></textarea>
                 </div>
                 {% endif %}
             </div>
             {% endfor %}
             
             <div class="text-center pt-6">
-                <button type="submit" class="bg-sky-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:bg-sky-700 transition-transform transform hover:scale-105">
+                <button type="submit" class="bg-sky-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:bg-sky-700">
                     Submit Quiz
                 </button>
             </div>
@@ -56,19 +63,108 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Brython & CodeMirror -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython_stdlib.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/python/python.min.js"></script>
+
 <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        brython();
+
+        document.querySelectorAll('.coding-question-container').forEach(container => {
+            const questionId = container.dataset.questionId;
+            const editorTextarea = container.querySelector(`#editor-${questionId}`);
+            const hiddenInput = container.querySelector('.hidden-code-input');
+            const runBtn = container.querySelector('.run-code-btn');
+            const outputConsole = container.querySelector('.output-console');
+
+            const editor = CodeMirror.fromTextArea(editorTextarea, {
+                mode: "python",
+                theme: "dracula",
+                lineNumbers: true,
+                indentUnit: 4
+            });
+            editor.setSize("100%", "100%");
+
+            editor.on('change', () => {
+                hiddenInput.value = editor.getValue();
+            });
+
+            runBtn.addEventListener('click', () => {
+                const code = editor.getValue();
+                outputConsole.textContent = "";
+
+                window.__BRYTHON__.stdout.write = (data) => { outputConsole.textContent += data; };
+                window.__BRYTHON__.stderr.write = (data) => { outputConsole.textContent += "Error: " + data; };
+
+                try {
+                    const jsCode = __BRYTHON__.python_to_js(code);
+                    eval(jsCode);
+                } catch (err) {
+                    outputConsole.textContent = "Error: " + err.message;
+                }
+            });
+        });
+
+        // --- Form Submission Validation ---
+        const quizForm = document.getElementById('quizForm');
+        quizForm.addEventListener('submit', function(event) {
+            let allAnswered = true;
+            const questions = document.querySelectorAll('.question-block');
+
+            questions.forEach(questionDiv => {
+                const questionId = questionDiv.dataset.questionId;
+                let answered = false;
+
+                // Check multiple choice questions
+                const radioButtons = questionDiv.querySelectorAll(`input[name="question_${questionId}"]`);
+                if (radioButtons.length > 0) {
+                    for (const radio of radioButtons) {
+                        if (radio.checked) {
+                            answered = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Check coding questions
+                const codingInput = questionDiv.querySelector(`.hidden-code-input`);
+                if (codingInput && codingInput.value.trim() !== '') {
+                    answered = true;
+                }
+                
+                // If a question is unanswered, highlight it
+                if (!answered) {
+                    allAnswered = false;
+                    questionDiv.style.border = '2px solid #ef4444'; // Red border
+                    questionDiv.style.padding = '1.5rem';
+                    questionDiv.style.borderRadius = '0.5rem';
+                } else {
+                    questionDiv.style.border = ''; // Remove highlight if answered
+                    questionDiv.style.padding = '1.5rem 0 0 0';
+                }
+            });
+
+            if (!allAnswered) {
+                event.preventDefault(); // Stop the form from submitting
+                alert('Please answer all questions before submitting.');
+            }
+        });
+    });
+
+    // Timer script
     const timerElement = document.getElementById('timer');
     let seconds = 0;
-
     function formatTime(sec) {
         const minutes = Math.floor(sec / 60);
         const remainingSeconds = sec % 60;
-        const formattedMinutes = String(minutes).padStart(2, '0');
-        const formattedSeconds = String(remainingSeconds).padStart(2, '0');
-        return `${formattedMinutes}:${formattedSeconds}`;
+        return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
     }
-
-    const timerInterval = setInterval(() => {
+    setInterval(() => {
         seconds++;
         timerElement.textContent = formatTime(seconds);
     }, 1000);
