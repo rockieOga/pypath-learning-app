@@ -212,15 +212,25 @@ def dashboard():
         pass_rate = (passed_count / total_students_with_scores) * 100 if total_students_with_scores > 0 else 0
         avg_score = sum(row['latest_score'] for row in latest_scores) / total_students_with_scores if total_students_with_scores > 0 else 0
 
-        topic_popularity = conn.execute('''
-            SELECT topic, COUNT(DISTINCT user_id) as student_count
-            FROM student_topic_mastery
-            GROUP BY topic
-            ORDER BY student_count DESC
+        # ** FIX IS HERE: This query now counts students with correct answers per topic **
+        all_topics_raw = conn.execute('SELECT DISTINCT topic FROM questions').fetchall()
+        all_topics = {row['topic']: 0 for row in all_topics_raw}
+        
+        topic_correctness = conn.execute('''
+            SELECT q.topic, COUNT(DISTINCT r.user_id) as student_count
+            FROM student_answers sa
+            JOIN results r ON sa.result_id = r.id
+            JOIN questions q ON sa.question_id = q.id
+            WHERE sa.is_correct = 1
+            GROUP BY q.topic
         ''').fetchall()
         
-        topic_chart_labels = [row['topic'] for row in topic_popularity]
-        topic_chart_values = [row['student_count'] for row in topic_popularity]
+        for row in topic_correctness:
+            if row['topic'] in all_topics:
+                all_topics[row['topic']] = row['student_count']
+
+        topic_chart_labels = list(all_topics.keys())
+        topic_chart_values = list(all_topics.values())
         
         conn.close()
         return render_template('admin/dashboard.html', 
@@ -490,7 +500,7 @@ def results(result_id):
     result = conn.execute('SELECT * FROM results WHERE id = ? AND user_id = ?', (result_id, get_user_id())).fetchone()
     if not result: return "Result not found or you do not have permission to view it.", 404
     
-    proficiency_data = calculate_proficiency(get_user_id(), conn)
+    proficiency_data = calculate_proficiency(get_user_id(), conn, result_id)
     
     return render_template('student/results.html', result=result, proficiency=proficiency_data)
 

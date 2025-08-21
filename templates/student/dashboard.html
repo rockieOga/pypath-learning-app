@@ -45,13 +45,21 @@
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">Available Quizzes</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {% for set in sets %}
-                <div class="bg-white rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-transform duration-300">
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
                     <div class="p-6">
                         <h3 class="text-xl font-bold text-gray-900 mb-2">{{ set.title }}</h3>
                         <p class="text-sm text-gray-600 mb-4 h-12">{{ set.description }}</p>
-                        <a href="{{ url_for('quiz', set_id=set.id) }}" class="inline-block w-full text-center bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">
-                            Start Quiz
-                        </a>
+                        
+                        {% if set.completed %}
+                            <a href="{{ url_for('results', result_id=set.result_id) }}" class="inline-block w-full text-center bg-green-500 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center">
+                                <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                                Completed
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('quiz', set_id=set.id) }}" class="inline-block w-full text-center bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">
+                                Start Quiz
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
                 {% else %}
@@ -60,44 +68,11 @@
             </div>
         </div>
 
-        <!-- Performance History Chart -->
-        <div class="mt-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Recent Performance</h2>
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <canvas id="performanceHistoryChart" data-labels='{{ history_labels | tojson | safe }}' data-scores='{{ history_scores | tojson | safe }}'></canvas>
-            </div>
-        </div>
-
     </div>
 
-    <!-- Right Column: Topic Mastery & Actions -->
+    <!-- Right Column: Actions -->
     <div class="space-y-8">
         
-        <!-- Topic Mastery "Stats" -->
-        <div>
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Topic Mastery</h3>
-            <div class="space-y-6">
-                {% for topic in proficiency %}
-                <div class="flex items-center justify-between gap-4">
-                    <div class="flex-grow">
-                        <div class="flex justify-between mb-1">
-                            <span class="text-base font-medium text-gray-700">{{ topic.topic }}</span>
-                            <span class="text-sm font-medium text-sky-700">Lvl {{ topic.level }}</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2.5">
-                            <div class="bg-sky-600 h-2.5 rounded-full" style="width: {{ topic.percentage }}%"></div>
-                        </div>
-                    </div>
-                    <a href="{{ topic.study_link }}" target="_blank" class="flex-shrink-0 text-sm w-auto text-center bg-slate-100 text-slate-700 font-semibold py-2 px-3 rounded-lg hover:bg-slate-200 transition">
-                        Study Topic
-                    </a>
-                </div>
-                {% else %}
-                <p class="text-gray-500">Complete a quiz to see your topic mastery.</p>
-                {% endfor %}
-            </div>
-        </div>
-
         <!-- Actions -->
         <div>
             <h3 class="text-xl font-bold text-gray-900 mb-4">Actions</h3>
@@ -120,107 +95,4 @@
     </div>
 
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    // Script for the performance history chart
-    const historyCanvas = document.getElementById('performanceHistoryChart');
-    if (historyCanvas) {
-        const labels = JSON.parse(historyCanvas.dataset.labels || '[]');
-        const scores = JSON.parse(historyCanvas.dataset.scores || '[]');
-
-        new Chart(historyCanvas, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Score (%)',
-                    data: scores,
-                    borderColor: 'rgb(14, 165, 233)',
-                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-
-    // ** FIX IS HERE: Restored the missing JavaScript for image upload and print button **
-    document.getElementById('printIdCardBtn').addEventListener('click', () => {
-        {% if user and user.student_code %}
-        const printWindow = window.open("{{ url_for('id_card', student_code=user.student_code) }}", '_blank');
-        if (printWindow) {
-            printWindow.onload = function() {
-                printWindow.print();
-            };
-        }
-        {% else %}
-        alert("Could not generate ID card. User data is missing.");
-        {% endif %}
-    });
-
-    document.getElementById('imageUpload').addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const size = 96;
-                    canvas.width = size;
-                    canvas.height = size;
-
-                    let sourceX, sourceY, sourceWidth, sourceHeight;
-                    if (img.width > img.height) {
-                        sourceHeight = img.height;
-                        sourceWidth = img.height;
-                        sourceX = (img.width - img.height) / 2;
-                        sourceY = 0;
-                    } else {
-                        sourceWidth = img.width;
-                        sourceHeight = img.width;
-                        sourceX = 0;
-                        sourceY = (img.height - img.width) / 2;
-                    }
-
-                    ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, size, size);
-                    const dataUrl = canvas.toDataURL('image/png');
-                    document.getElementById('profileImage').src = dataUrl;
-                    
-                    fetch("{{ url_for('update_profile_image') }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ image: dataUrl })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!data.success) {
-                            console.error('Failed to save profile image.');
-                        }
-                    });
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-</script>
 {% endblock %}

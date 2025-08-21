@@ -77,11 +77,11 @@
             <canvas id="passFailChart"></canvas>
         </div>
     </div>
-    <!-- Topic Popularity Chart -->
+    <!-- Topic Correctness Chart -->
     <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-semibold mb-4">Topic Engagement</h3>
+        <h3 class="text-xl font-semibold mb-4">Topic Comprehension</h3>
         <div class="h-80">
-            <canvas id="topicPopularityChart" data-labels='{{ topic_chart_labels | tojson | safe }}' data-values='{{ topic_chart_values | tojson | safe }}'></canvas>
+            <canvas id="topicCorrectnessChart" data-labels='{{ topic_chart_labels | tojson | safe }}' data-values='{{ topic_chart_values | tojson | safe }}'></canvas>
         </div>
     </div>
 </div>
@@ -124,8 +124,8 @@
         });
     }
 
-    // Topic Popularity Chart
-    const topicCanvas = document.getElementById('topicPopularityChart');
+    // Topic Correctness Chart
+    const topicCanvas = document.getElementById('topicCorrectnessChart');
     if (topicCanvas) {
         const labels = JSON.parse(topicCanvas.dataset.labels || '[]');
         const values = JSON.parse(topicCanvas.dataset.values || '[]');
@@ -137,18 +137,21 @@
                 datasets: [{
                     label: 'Number of Students',
                     data: values,
-                    backgroundColor: 'rgba(14, 165, 233, 0.6)',
-                    borderColor: 'rgba(14, 165, 233, 1)',
+                    backgroundColor: 'rgba(14, 116, 144, 0.7)', // Professional cyan color
+                    borderColor: 'rgba(14, 116, 144, 1)',
                     borderWidth: 1
                 }]
             },
             options: {
-                indexAxis: 'y',
                 scales: {
-                    x: {
+                    y: {
                         beginAtZero: true,
                         ticks: {
                             stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: '# of Students who got correct'
                         }
                     }
                 },
@@ -156,7 +159,7 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    title: { display: true, text: 'Number of Students Who Attempted Each Topic' }
+                    title: { display: true, text: 'Topic Comprehension' }
                 }
             }
         });
