@@ -68,7 +68,6 @@
         return `${formattedMinutes}:${formattedSeconds}`;
     }
 
-    // Update the timer every second
     const timerInterval = setInterval(() => {
         seconds++;
         timerElement.textContent = formatTime(seconds);

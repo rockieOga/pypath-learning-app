@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block title %}Code Sandbox{% endblock %}
+{% block header %}Code Sandbox{% endblock %}
+
+{% block content %}
+<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 text-white h-full flex flex-col">
+    <h2 class="text-2xl font-bold text-white mb-4">Python Simulator</h2>
+    <p class="text-slate-400 mb-6">Write your Python code below and click "Run" to see the output. This is a safe space to experiment and learn.</p>
+    
+    <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Code Editor -->
+        <div class="flex flex-col">
+            <label for="code-editor" class="text-sm font-semibold mb-2 text-slate-300">Your Code</label>
+            <textarea id="code-editor" class="w-full h-full bg-slate-900 text-sky-300 font-mono p-4 rounded-md border border-slate-700 focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="print('Hello, PyPath!')"></textarea>
+        </div>
+        
+        <!-- Output Console -->
+        <div class="flex flex-col">
+            <label for="output-console" class="text-sm font-semibold mb-2 text-slate-300">Output</label>
+            <div id="output-console" class="w-full h-full bg-slate-900 text-white font-mono p-4 rounded-md border border-slate-700 overflow-y-auto">
+                <span class="text-slate-500">Your code's output will appear here...</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-6 text-right">
+        <button id="runCodeBtn" class="bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-emerald-600 transition-colors flex items-center justify-center ml-auto">
+            <i data-lucide="play" class="w-5 h-5 mr-2"></i>
+            Run Code
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Note: A secure, server-side execution environment would be needed for a production application.
+    // This is a simplified client-side example for demonstration.
+    document.getElementById('runCodeBtn').addEventListener('click', () => {
+        const code = document.getElementById('code-editor').value;
+        const outputConsole = document.getElementById('output-console');
+        
+        // Clear previous output
+        outputConsole.innerHTML = '';
+
+        try {
+            // This is a simplified and insecure way to run Python.
+            // A real application would need a secure backend sandbox.
+            // For now, we'll just display the code.
+            const p = document.createElement('p');
+            p.textContent = `Running code:\n${code}`;
+            outputConsole.appendChild(p);
+        } catch (e) {
+            const errorP = document.createElement('p');
+            errorP.className = 'text-red-400';
+            errorP.textContent = `Error: ${e.message}`;
+            outputConsole.appendChild(errorP);
+        }
+    });
+</script>
+{% endblock %}

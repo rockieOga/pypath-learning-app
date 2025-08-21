@@ -1,15 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 import sqlite3
 import os
 import bcrypt
-import io
 import json
 import uuid
-from contextlib import redirect_stdout
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+# --- Gamification Constants ---
+XP_PER_CORRECT_ANSWER = 10
+XP_TO_LEVEL_UP = 100
 
 # --- W3Schools Topic URL Mapping ---
 W3SCHOOLS_LINKS = {
@@ -21,7 +23,6 @@ W3SCHOOLS_LINKS = {
     "Strings": "https://www.w3schools.com/python/python_strings.asp",
     "Loops": "https://www.w3schools.com/python/python_for_loops.asp"
 }
-
 
 # --- Database Setup ---
 def get_db_connection():
@@ -51,10 +52,16 @@ def get_user_id():
 def is_admin():
     return session.get('is_admin', False)
 
-def get_proficiency_level(percentage):
-    if percentage >= 85: return "Proficient", "text-green-600"
-    elif percentage >= 60: return "Intermediate", "text-yellow-600"
-    else: return "Beginner", "text-red-600"
+def format_duration(start_time, end_time):
+    if not isinstance(start_time, datetime) or not isinstance(end_time, datetime):
+        return "N/A"
+    duration = end_time - start_time
+    total_seconds = int(duration.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours > 0: return f"{hours}h {minutes}m {seconds}s"
+    if minutes > 0: return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
 
 def calculate_proficiency(user_id, conn):
     last_result = conn.execute('SELECT id FROM results WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1', (user_id,)).fetchone()
@@ -72,29 +79,11 @@ def calculate_proficiency(user_id, conn):
         level, color = get_proficiency_level(percentage)
         proficiency_analysis.append({'topic': topic, 'percentage': round(percentage), 'level': level, 'color': color, 'study_link': W3SCHOOLS_LINKS.get(topic, '#')})
     return proficiency_analysis
-
-def calculate_percentile(user_id, conn):
-    user_latest_result = conn.execute('SELECT (score * 100.0 / total_questions) as percentage FROM results WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1', (user_id,)).fetchone()
-    if not user_latest_result: return None
-    user_percentage = user_latest_result['percentage']
-    all_latest_scores = conn.execute('SELECT MAX(score * 100.0 / total_questions) as latest_percentage FROM results r JOIN users u ON r.user_id = u.id WHERE u.is_admin = 0 GROUP BY r.user_id').fetchall()
-    if not all_latest_scores: return 100
-    total_students = len(all_latest_scores)
-    scores_lower = sum(1 for row in all_latest_scores if row['latest_percentage'] < user_percentage)
-    if total_students == 0: return 100
-    percentile = (scores_lower / total_students) * 100
-    return round(percentile)
-
-def format_duration(start_time, end_time):
-    if not isinstance(start_time, datetime) or not isinstance(end_time, datetime):
-        return "N/A"
-    duration = end_time - start_time
-    total_seconds = int(duration.total_seconds())
-    hours, remainder = divmod(total_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    if hours > 0: return f"{hours}h {minutes}m {seconds}s"
-    if minutes > 0: return f"{minutes}m {seconds}s"
-    return f"{seconds}s"
+    
+def get_proficiency_level(percentage):
+    if percentage >= 85: return "Proficient", "text-green-600"
+    elif percentage >= 60: return "Intermediate", "text-yellow-600"
+    else: return "Beginner", "text-red-600"
 
 # --- Main Routes ---
 @app.route('/')
@@ -120,14 +109,20 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username, password, first_name, last_name, middle_name = request.form['username'], request.form['password'], request.form['first_name'], request.form['last_name'], request.form['middle_name']
+        username = request.form['username']
+        password = request.form['password']
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        middle_name = request.form.get('middle_name')
+
         conn = get_db_connection()
         if conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone():
             flash('Username already exists.', 'danger')
         else:
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
             student_code = str(uuid.uuid4())
-            conn.execute('INSERT INTO users (username, password, student_code, first_name, last_name, middle_name) VALUES (?, ?, ?, ?, ?, ?)', (username, hashed_password, student_code, first_name, last_name, middle_name))
+            conn.execute('INSERT INTO users (username, password, student_code, first_name, last_name, middle_name) VALUES (?, ?, ?, ?, ?, ?)',
+                         (username, hashed_password, student_code, first_name, last_name, middle_name))
             conn.commit()
             flash('Registration successful! Please log in.', 'success')
             return redirect(url_for('login'))
@@ -144,7 +139,7 @@ def profile():
     if not get_user_id(): return redirect(url_for('login'))
     conn = get_db_connection()
     if request.method == 'POST':
-        first_name, last_name, middle_name = request.form['first_name'], request.form['last_name'], request.form['middle_name']
+        first_name, last_name, middle_name = request.form['first_name'], request.form['last_name'], request.form.get('middle_name')
         conn.execute('UPDATE users SET first_name = ?, last_name = ?, middle_name = ? WHERE id = ?', (first_name, last_name, middle_name, get_user_id()))
         conn.commit()
         flash('Profile updated successfully!', 'success')
@@ -184,17 +179,25 @@ def dashboard():
                                chart_labels=chart_labels,
                                chart_values=chart_values)
     else:
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (get_user_id(),)).fetchone()
         sets = conn.execute('SELECT * FROM question_sets').fetchall()
-        recommendations = conn.execute('SELECT * FROM recommendations WHERE user_id = ? ORDER BY timestamp DESC', (get_user_id(),)).fetchall()
-        proficiency_data = calculate_proficiency(get_user_id(), conn)
-        overall_proficiency, percentile = None, None
-        if proficiency_data:
-            average_percentage = sum(item['percentage'] for item in proficiency_data) / len(proficiency_data)
-            level, color = get_proficiency_level(average_percentage)
-            overall_proficiency = {'percentage': round(average_percentage), 'level': level, 'color': color}
-            percentile = calculate_percentile(get_user_id(), conn)
+        
+        proficiency_raw = conn.execute('SELECT * FROM student_topic_mastery WHERE user_id = ?', (get_user_id(),)).fetchall()
+        proficiency = []
+        for topic_data in proficiency_raw:
+            topic_dict = dict(topic_data)
+            topic_dict['percentage'] = (topic_data['xp'] / XP_TO_LEVEL_UP) * 100
+            topic_dict['study_link'] = W3SCHOOLS_LINKS.get(topic_data['topic'], '#')
+            proficiency.append(topic_dict)
+
+        user_data = dict(user)
+        user_data['next_level_xp'] = XP_TO_LEVEL_UP
+
         conn.close()
-        return render_template('student/dashboard.html', sets=sets, recommendations=recommendations, proficiency=proficiency_data, overall_proficiency=overall_proficiency, percentile=percentile)
+        return render_template('student/dashboard.html', 
+                               user=user_data, 
+                               sets=sets, 
+                               proficiency=proficiency)
 
 # --- Admin Routes ---
 @app.route('/admin/questions')
@@ -224,12 +227,6 @@ def student_history():
     if not is_admin(): return redirect(url_for('login'))
     conn = get_db_connection()
     
-    # ** FIX IS HERE: Added queries for the stat cards **
-    student_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 0').fetchone()[0]
-    quiz_count = conn.execute('SELECT COUNT(*) FROM question_sets').fetchone()[0]
-    avg_score_data = conn.execute('SELECT AVG(score * 100.0 / total_questions) as avg_score FROM results').fetchone()
-    avg_score = avg_score_data['avg_score'] if avg_score_data and avg_score_data['avg_score'] else 0
-
     search_query = request.args.get('search', '')
     base_query = '''
         SELECT 
@@ -259,12 +256,7 @@ def student_history():
         row_dict['date_formatted'] = end_time.strftime('%Y-%m-%d') if end_time else "N/A"
         history.append(row_dict)
     conn.close()
-    return render_template('admin/history.html', 
-                           history=history, 
-                           search_query=search_query,
-                           student_count=student_count,
-                           quiz_count=quiz_count,
-                           avg_score=avg_score)
+    return render_template('admin/history.html', history=history, search_query=search_query)
 
 # --- Student Routes ---
 @app.route('/history')
@@ -303,28 +295,51 @@ def quiz(set_id):
 @app.route('/submit_quiz/<int:set_id>', methods=['POST'])
 def submit_quiz(set_id):
     if not get_user_id(): return redirect(url_for('login'))
-    start_time_str = session.pop('quiz_start_time', None)
-    start_time = datetime.fromisoformat(start_time_str) if start_time_str else datetime.now()
+    start_time_str = session.pop('quiz_start_time', datetime.now().isoformat())
+    start_time = datetime.fromisoformat(start_time_str)
+
     conn = get_db_connection()
     questions = conn.execute('SELECT q.* FROM questions q JOIN set_questions sq ON q.id = sq.question_id WHERE sq.set_id = ?', (set_id,)).fetchall()
-    score, incorrect_topics = 0, []
+    
+    score = 0
+    total_xp_gained = 0
+
     result_cursor = conn.cursor()
     result_cursor.execute('INSERT INTO results (user_id, set_id, score, total_questions, time_start) VALUES (?, ?, 0, ?, ?)',
                           (get_user_id(), set_id, len(questions), start_time))
     result_id = result_cursor.lastrowid
+
     for q in questions:
         user_answer = request.form.get(f'question_{q["id"]}')
-        is_correct = 1 if (q['question_type'] == 'multiple_choice' and user_answer == q['correct_answer']) or \
-                           (q['question_type'] == 'coding' and user_answer and user_answer.strip() == q['correct_code_output'].strip()) else 0
-        if is_correct: score += 1
-        else: incorrect_topics.append(q['topic'])
+        is_correct = 1 if (q['question_type'] == 'multiple_choice' and user_answer == q['correct_answer']) else 0
+
+        if is_correct:
+            score += 1
+            total_xp_gained += XP_PER_CORRECT_ANSWER
+            
+            conn.execute('''
+                INSERT INTO student_topic_mastery (user_id, topic, xp) VALUES (?, ?, ?)
+                ON CONFLICT(user_id, topic) DO UPDATE SET xp = xp + ?
+            ''', (get_user_id(), q['topic'], XP_PER_CORRECT_ANSWER, XP_PER_CORRECT_ANSWER))
+
         conn.execute('INSERT INTO student_answers (result_id, question_id, user_answer, is_correct) VALUES (?, ?, ?, ?)', (result_id, q['id'], user_answer, is_correct))
+
+    # Award "First Steps" achievement
+    conn.execute('INSERT OR IGNORE INTO student_achievements (user_id, achievement_id) VALUES (?, 1)', (get_user_id(),))
+
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (get_user_id(),)).fetchone()
+    new_xp = user['xp'] + total_xp_gained
+    new_level = user['level']
+    while new_xp >= XP_TO_LEVEL_UP:
+        new_level += 1
+        new_xp -= XP_TO_LEVEL_UP
+    
+    conn.execute('UPDATE users SET xp = ?, level = ? WHERE id = ?', (new_xp, new_level, get_user_id()))
     conn.execute('UPDATE results SET score = ?, timestamp = ? WHERE id = ?', (score, datetime.now(), result_id))
-    if incorrect_topics:
-        for topic in set(incorrect_topics):
-            conn.execute('INSERT INTO recommendations (user_id, recommendation_text) VALUES (?, ?)', (get_user_id(), f"You seem to be struggling with {topic}. We recommend reviewing this topic."))
+    
     conn.commit()
     conn.close()
+    
     return redirect(url_for('results', result_id=result_id))
 
 @app.route('/results/<int:result_id>')
@@ -333,8 +348,9 @@ def results(result_id):
     conn = get_db_connection()
     result = conn.execute('SELECT * FROM results WHERE id = ? AND user_id = ?', (result_id, get_user_id())).fetchone()
     if not result: return "Result not found or you do not have permission to view it.", 404
+    
     proficiency_data = calculate_proficiency(get_user_id(), conn)
-    conn.close()
+    
     return render_template('student/results.html', result=result, proficiency=proficiency_data)
 
 if __name__ == '__main__':

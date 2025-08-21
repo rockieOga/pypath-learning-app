@@ -4,14 +4,12 @@
 
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
-    <!-- Search Form -->
     <form method="GET" action="{{ url_for('student_history') }}" class="mb-6">
         <div class="flex">
             <input type="text" name="search" placeholder="Search by student name..." value="{{ search_query or '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500">
         </div>
     </form>
 
-    <!-- Results Table -->
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white">
             <thead class="bg-gray-50">
@@ -45,37 +43,4 @@
         </table>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        const tableBody = document.querySelector('tbody');
-        let debounceTimer;
-
-        searchInput.addEventListener('keyup', () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                const searchTerm = searchInput.value;
-                const url = new URL(window.location);
-                url.searchParams.set('search', searchTerm);
-
-                window.history.pushState({}, '', url);
-
-                fetch(url)
-                    .then(response => response.text())
-                    .then(html => {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        const newTbody = doc.querySelector('tbody');
-                        if (newTbody) {
-                            tableBody.innerHTML = newTbody.innerHTML;
-                        }
-                    })
-                    .catch(error => console.error('Error fetching search results:', error));
-            }, 300);
-        });
-    }
-</script>
 {% endblock %}

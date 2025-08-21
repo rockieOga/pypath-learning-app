@@ -10,7 +10,6 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt #</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz Title</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Start</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time End</th>
@@ -21,9 +20,8 @@
             <tbody class="divide-y divide-gray-200">
                 {% for row in history %}
                 <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">{{ loop.index }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.title }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">{{ row.attempt_number }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.title }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.score }}/{{ row.total_questions }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.time_start_formatted }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.time_end_formatted }}</td>

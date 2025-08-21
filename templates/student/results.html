@@ -7,13 +7,11 @@
     <h2 class="text-3xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
     <p class="text-lg text-gray-600 mb-6">Here is a summary of your performance.</p>
     
-    <!-- Overall Score -->
     <div class="mb-8">
         <p class="text-5xl font-bold text-sky-600">{{ result.score }} / {{ result.total_questions }}</p>
         <p class="text-xl font-semibold text-gray-700">Correct Answers</p>
     </div>
 
-    <!-- Proficiency Breakdown -->
     {% if proficiency %}
     <div class="border-t pt-6">
         <h3 class="text-2xl font-bold text-gray-800 mb-4">Topic Proficiency Breakdown</h3>
