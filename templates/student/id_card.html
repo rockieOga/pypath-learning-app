@@ -25,7 +25,7 @@
                 </div>
             </div>
             <div class="flex-shrink-0">
-                <img src="https://placehold.co/64x64/7dd3fc/0c4a6e?text={{ user.first_name[0] }}" alt="Profile Image" class="w-16 h-16 rounded-full border-2 border-sky-400">
+                <img src="{{ user.profile_image or 'https://placehold.co/64x64/7dd3fc/0c4a6e?text=' + (user.first_name[0] if user.first_name else 'P') }}" alt="Profile Image" class="w-16 h-16 rounded-full border-2 border-sky-400 object-cover">
             </div>
         </div>
         <div>

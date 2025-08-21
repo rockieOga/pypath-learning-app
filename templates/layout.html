@@ -21,7 +21,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        /* Sidebar transition */
         #sidebar {
             transition: transform 0.3s ease-in-out;
         }
@@ -67,6 +66,9 @@
                     </a>
                     <a href="{{ url_for('student_result_history') }}" class="flex items-center px-4 py-2 mt-2 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white">
                         <i data-lucide="history" class="icon"></i><span class="ml-3">Result History</span>
+                    </a>
+                    <a href="{{ url_for('leaderboard') }}" class="flex items-center px-4 py-2 mt-2 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white">
+                        <i data-lucide="bar-chart-3" class="icon"></i><span class="ml-3">Leaderboard</span>
                     </a>
                     {% endif %}
                 </div>

@@ -3,8 +3,8 @@
 {% block header %}Analytics Dashboard{% endblock %}
 
 {% block content %}
+<!-- Top Row Stats -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <!-- Stat Cards -->
     <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
         <div class="bg-sky-100 p-3 rounded-full">
             <i data-lucide="users" class="h-6 w-6 text-sky-600"></i>
@@ -34,51 +34,84 @@
     </div>
 </div>
 
-<!-- Charts -->
+<!-- New Pass/Fail Analytics Section -->
+<div class="mt-8">
+    <h3 class="text-xl font-semibold mb-4 text-slate-800">Student Performance Summary</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+            <div class="bg-green-100 p-3 rounded-full">
+                <i data-lucide="check-circle" class="h-6 w-6 text-green-600"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm text-gray-500">Students Passed</p>
+                <p class="text-2xl font-semibold">{{ passed_count }}</p>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+            <div class="bg-red-100 p-3 rounded-full">
+                <i data-lucide="x-circle" class="h-6 w-6 text-red-600"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm text-gray-500">Students Failed</p>
+                <p class="text-2xl font-semibold">{{ failed_count }}</p>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+            <div class="bg-blue-100 p-3 rounded-full">
+                <i data-lucide="pie-chart" class="h-6 w-6 text-blue-600"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm text-gray-500">Pass Rate</p>
+                <p class="text-2xl font-semibold">{{ "%.2f"|format(pass_rate) }}%</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pass Rate Chart -->
 <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
-    <h3 class="text-xl font-semibold mb-4">Student Performance Overview</h3>
-    <canvas id="performanceChart" 
-            data-labels='{{ chart_labels | tojson | safe }}' 
-            data-values='{{ chart_values | tojson | safe }}'>
-    </canvas>
+    <h3 class="text-xl font-semibold mb-4">Pass vs. Fail Distribution</h3>
+    <div class="h-80 flex justify-center">
+        <canvas id="passFailChart"></canvas>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const chartCanvas = document.getElementById('performanceChart');
-    if (chartCanvas) {
-        const labels = JSON.parse(chartCanvas.dataset.labels || '[]');
-        const values = JSON.parse(chartCanvas.dataset.values || '[]');
+    const passFailCanvas = document.getElementById('passFailChart');
+    if (passFailCanvas) {
+        const passedCount = {{ passed_count }};
+        const failedCount = {{ failed_count }};
 
-        const ctx = chartCanvas.getContext('2d');
-        const performanceChart = new Chart(ctx, {
-            type: 'bar',
+        new Chart(passFailCanvas, {
+            type: 'doughnut',
             data: {
-                labels: labels,
+                labels: ['Passed', 'Failed'],
                 datasets: [{
-                    label: 'Latest Score (%)',
-                    data: values,
-                    backgroundColor: 'rgba(56, 189, 248, 0.6)',
-                    borderColor: 'rgba(56, 189, 248, 1)',
+                    label: 'Number of Students',
+                    data: [passedCount, failedCount],
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.7)', // green-500
+                        'rgba(239, 68, 68, 0.7)'  // red-500
+                    ],
+                    borderColor: [
+                        'rgba(34, 197, 94, 1)',
+                        'rgba(239, 68, 68, 1)'
+                    ],
                     borderWidth: 1
                 }]
             },
             options: {
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        max: 100
-                    }
-                },
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: false
+                        position: 'top',
                     },
                     title: {
                         display: true,
-                        text: 'Latest Quiz Score for Each Student'
+                        text: 'Student Pass/Fail Distribution'
                     }
                 }
             }

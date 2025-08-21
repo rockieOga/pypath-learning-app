@@ -1,6 +1,6 @@
 -- schema.sql
 
--- Drop tables in reverse order of dependency
+-- Drop tables in reverse order of dependency to avoid foreign key constraints
 DROP TABLE IF EXISTS recommendations;
 DROP TABLE IF EXISTS student_answers;
 DROP TABLE IF EXISTS results;
@@ -13,7 +13,7 @@ DROP TABLE IF EXISTS questions;
 DROP TABLE IF EXISTS users;
 
 
--- Users table with gamification and profile image fields
+-- Users table: Stores user credentials and roles
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -28,12 +28,12 @@ CREATE TABLE users (
     xp INTEGER NOT NULL DEFAULT 0
 );
 
--- Questions table (unchanged)
+-- Questions table: The central bank for all questions
 CREATE TABLE questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     question_text TEXT NOT NULL,
-    question_type TEXT NOT NULL DEFAULT 'multiple_choice',
-    topic TEXT NOT NULL,
+    question_type TEXT NOT NULL DEFAULT 'multiple_choice', -- 'multiple_choice' or 'coding'
+    topic TEXT NOT NULL, -- e.g., 'Variables', 'Loops', 'Functions' for the recommender system
     option_a TEXT,
     option_b TEXT,
     option_c TEXT,
@@ -42,17 +42,56 @@ CREATE TABLE questions (
     correct_code_output TEXT
 );
 
--- New table to track topic-specific progress
-CREATE TABLE student_topic_mastery (
+-- Question Sets table: Allows admin to group questions into quizzes
+CREATE TABLE question_sets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT
+);
+
+-- Set_Questions table: Links questions to question sets (many-to-many relationship)
+CREATE TABLE set_questions (
+    set_id INTEGER NOT NULL,
+    question_id INTEGER NOT NULL,
+    PRIMARY KEY (set_id, question_id),
+    FOREIGN KEY (set_id) REFERENCES question_sets (id) ON DELETE CASCADE,
+    FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+);
+
+-- Results table: Stores high-level results for each quiz attempt
+CREATE TABLE results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    topic TEXT NOT NULL,
-    level INTEGER NOT NULL DEFAULT 1,
-    xp INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (user_id, topic),
+    set_id INTEGER NOT NULL,
+    score INTEGER NOT NULL,
+    total_questions INTEGER NOT NULL,
+    time_start DATETIME NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, -- This will serve as time_end
+    FOREIGN KEY (user_id) REFERENCES users (id),
+    FOREIGN KEY (set_id) REFERENCES question_sets (id)
+);
+
+-- Student_Answers table: Stores the student's specific answer for each question for detailed analysis
+CREATE TABLE student_answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    result_id INTEGER NOT NULL,
+    question_id INTEGER NOT NULL,
+    user_answer TEXT,
+    is_correct INTEGER NOT NULL, -- 1 for true, 0 for false
+    FOREIGN KEY (result_id) REFERENCES results (id),
+    FOREIGN KEY (question_id) REFERENCES questions (id)
+);
+
+-- Recommendations table: Stores personalized recommendations for students
+CREATE TABLE recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    recommendation_text TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
--- New tables for achievements
+-- Achievements tables
 CREATE TABLE achievements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -69,51 +108,16 @@ CREATE TABLE student_achievements (
     FOREIGN KEY (achievement_id) REFERENCES achievements (id)
 );
 
-
--- Other tables (unchanged)
-CREATE TABLE question_sets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    description TEXT
-);
-
-CREATE TABLE set_questions (
-    set_id INTEGER NOT NULL,
-    question_id INTEGER NOT NULL,
-    PRIMARY KEY (set_id, question_id),
-    FOREIGN KEY (set_id) REFERENCES question_sets (id) ON DELETE CASCADE,
-    FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
-);
-
-CREATE TABLE results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+-- Student Topic Mastery table
+CREATE TABLE student_topic_mastery (
     user_id INTEGER NOT NULL,
-    set_id INTEGER NOT NULL,
-    score INTEGER NOT NULL,
-    total_questions INTEGER NOT NULL,
-    time_start DATETIME NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users (id),
-    FOREIGN KEY (set_id) REFERENCES question_sets (id)
-);
-
-CREATE TABLE student_answers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    result_id INTEGER NOT NULL,
-    question_id INTEGER NOT NULL,
-    user_answer TEXT,
-    is_correct INTEGER NOT NULL,
-    FOREIGN KEY (result_id) REFERENCES results (id),
-    FOREIGN KEY (question_id) REFERENCES questions (id)
-);
-
-CREATE TABLE recommendations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    recommendation_text TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    topic TEXT NOT NULL,
+    level INTEGER NOT NULL DEFAULT 1,
+    xp INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, topic),
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
+
 
 -- --- PRE-POPULATED DATA ---
 INSERT INTO questions (question_text, question_type, topic, option_a, option_b, option_c, option_d, correct_answer) VALUES

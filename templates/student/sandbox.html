@@ -3,20 +3,27 @@
 {% block header %}Code Sandbox{% endblock %}
 
 {% block content %}
-<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 text-white h-full flex flex-col" style="height: 75vh;">
+<div class="bg-gray-900 border border-slate-700 rounded-lg shadow-lg p-4 md:p-6 text-white h-full flex flex-col min-h-[85vh]">
     <h2 class="text-2xl font-bold text-white mb-4">Python Simulator</h2>
-    <p class="text-slate-400 mb-6">
-        Write your Python code below and click "Run" to see the output.
-        This is a safe space to experiment and learn.
+    <p class="text-slate-400 mb-6 text-sm md:text-base">
+        Write your Python code below and click "Run" to see the output. Press Ctrl+Space for autocomplete.
     </p>
 
     <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Code editor -->
-        <textarea id="python-editor"></textarea>
+        <div class="flex flex-col h-80 md:h-full">
+            <label for="python-editor" class="text-sm font-semibold mb-2 text-slate-300">Editor</label>
+            <div class="flex-grow h-full">
+                <textarea id="python-editor"></textarea>
+            </div>
+        </div>
 
         <!-- Output panel -->
-        <div id="output" class="w-full h-full p-4 rounded-lg bg-slate-900 text-green-300 font-mono overflow-auto">
-            <!-- Execution results will show here -->
+        <div class="flex flex-col h-80 md:h-full">
+            <label for="output" class="text-sm font-semibold mb-2 text-slate-300">Console</label>
+            <div id="output" class="w-full h-full p-4 rounded-lg bg-black text-green-300 font-mono overflow-auto">
+                <!-- Execution results will show here -->
+            </div>
         </div>
     </div>
 
@@ -37,14 +44,20 @@
 <!-- CodeMirror -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/theme/dracula.min.css">
+<!-- Addon for autocomplete -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/addon/hint/show-hint.min.css">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/python/python.min.js"></script>
+<!-- Addon scripts for autocomplete -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/addon/hint/show-hint.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/addon/hint/python-hint.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         brython();
 
-        // Initialize CodeMirror editor
+        // Initialize CodeMirror editor with autocomplete
         window.editor = CodeMirror.fromTextArea(document.getElementById("python-editor"), {
             mode: "python",
             theme: "dracula",
@@ -52,8 +65,11 @@
             indentUnit: 4,
             smartIndent: true,
             matchBrackets: true,
-            autofocus: true
+            autofocus: true,
+            extraKeys: {"Ctrl-Space": "autocomplete"} // Enable autocomplete on Ctrl+Space
         });
+        // Set CodeMirror to fill its container
+        editor.setSize("100%", "100%");
     });
 
     // Append text to output panel

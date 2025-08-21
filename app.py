@@ -9,9 +9,10 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# --- Gamification Constants ---
+# --- Constants ---
 XP_PER_CORRECT_ANSWER = 10
 XP_TO_LEVEL_UP = 100
+PASSING_THRESHOLD = 60 # Score of 60% or higher is a pass
 
 # --- W3Schools Topic URL Mapping ---
 W3SCHOOLS_LINKS = {
@@ -65,7 +66,7 @@ def format_duration(start_time, end_time):
 
 def calculate_proficiency(user_id, conn):
     last_result = conn.execute('SELECT id FROM results WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1', (user_id,)).fetchone()
-    if not last_result: return None
+    if not last_result: return []
     answers = conn.execute('SELECT q.topic, sa.is_correct FROM student_answers sa JOIN questions q ON sa.question_id = q.id WHERE sa.result_id = ?', (last_result['id'],)).fetchall()
     topic_scores = {}
     for answer in answers:
@@ -76,14 +77,14 @@ def calculate_proficiency(user_id, conn):
     proficiency_analysis = []
     for topic, scores in topic_scores.items():
         percentage = (scores['correct'] / scores['total']) * 100 if scores['total'] > 0 else 0
-        level, color = get_proficiency_level(percentage)
-        proficiency_analysis.append({'topic': topic, 'percentage': round(percentage), 'level': level, 'color': color, 'study_link': W3SCHOOLS_LINKS.get(topic, '#')})
+        level, color_text, color_bg = get_proficiency_level(percentage)
+        proficiency_analysis.append({'topic': topic, 'percentage': round(percentage), 'level': level, 'study_link': W3SCHOOLS_LINKS.get(topic, '#')})
     return proficiency_analysis
     
 def get_proficiency_level(percentage):
-    if percentage >= 85: return "Proficient", "text-green-600"
-    elif percentage >= 60: return "Intermediate", "text-yellow-600"
-    else: return "Beginner", "text-red-600"
+    if percentage >= 85: return "Proficient", "text-green-500", "bg-green-500"
+    elif percentage >= 60: return "Intermediate", "text-yellow-500", "bg-yellow-500"
+    else: return "Beginner", "text-red-500", "bg-red-500"
 
 # --- Main Routes ---
 @app.route('/')
@@ -145,8 +146,25 @@ def profile():
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('profile'))
     user = conn.execute('SELECT * FROM users WHERE id = ?', (get_user_id(),)).fetchone()
+    
+    proficiency_raw = conn.execute('SELECT * FROM student_topic_mastery WHERE user_id = ?', (get_user_id(),)).fetchall()
+    total_xp = sum(topic['xp'] for topic in proficiency_raw)
+    total_possible_xp = len(proficiency_raw) * XP_TO_LEVEL_UP if proficiency_raw else 0
+    overall_percentage = (total_xp / total_possible_xp) * 100 if total_possible_xp > 0 else 0
+    proficiency_level, proficiency_color_text, proficiency_color_bg = get_proficiency_level(overall_percentage)
+    
+    achievements = conn.execute('''
+        SELECT a.name, a.icon FROM achievements a
+        JOIN student_achievements sa ON a.id = sa.achievement_id
+        WHERE sa.user_id = ?
+    ''', (get_user_id(),)).fetchall()
+    
     conn.close()
-    return render_template('profile.html', user=user)
+    return render_template('profile.html', 
+                           user=user,
+                           proficiency_level=proficiency_level,
+                           proficiency_color_bg=proficiency_color_bg,
+                           achievements=achievements)
 
 @app.route('/update_profile_image', methods=['POST'])
 def update_profile_image():
@@ -174,10 +192,8 @@ def dashboard():
     if is_admin():
         student_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 0').fetchone()[0]
         quiz_count = conn.execute('SELECT COUNT(*) FROM question_sets').fetchone()[0]
-        avg_score_data = conn.execute('SELECT AVG(score * 100.0 / total_questions) as avg_score FROM results').fetchone()
-        avg_score = avg_score_data['avg_score'] if avg_score_data and avg_score_data['avg_score'] else 0
         
-        student_performance = conn.execute('''
+        latest_scores = conn.execute('''
             SELECT u.first_name || ' ' || u.last_name as student_name, MAX(r.score * 100.0 / r.total_questions) as latest_score
             FROM results r
             JOIN users u ON r.user_id = u.id
@@ -186,16 +202,39 @@ def dashboard():
             ORDER BY latest_score DESC
         ''').fetchall()
 
-        chart_labels = [row['student_name'] for row in student_performance]
-        chart_values = [row['latest_score'] for row in student_performance]
+        passed_count = sum(1 for row in latest_scores if row['latest_score'] >= PASSING_THRESHOLD)
+        failed_count = len(latest_scores) - passed_count
         
+        total_students_with_scores = len(latest_scores)
+        pass_rate = (passed_count / total_students_with_scores) * 100 if total_students_with_scores > 0 else 0
+        avg_score = sum(row['latest_score'] for row in latest_scores) / total_students_with_scores if total_students_with_scores > 0 else 0
+
+        chart_labels = [row['student_name'] for row in latest_scores]
+        chart_values = [row['latest_score'] for row in latest_scores]
+        
+        # New query for topic popularity chart
+        topic_popularity = conn.execute('''
+            SELECT topic, COUNT(DISTINCT user_id) as student_count
+            FROM student_topic_mastery
+            GROUP BY topic
+            ORDER BY student_count DESC
+        ''').fetchall()
+        
+        topic_chart_labels = [row['topic'] for row in topic_popularity]
+        topic_chart_values = [row['student_count'] for row in topic_popularity]
+
         conn.close()
         return render_template('admin/dashboard.html', 
                                student_count=student_count, 
                                quiz_count=quiz_count, 
                                avg_score=avg_score,
+                               passed_count=passed_count,
+                               failed_count=failed_count,
+                               pass_rate=pass_rate,
                                chart_labels=chart_labels,
-                               chart_values=chart_values)
+                               chart_values=chart_values,
+                               topic_chart_labels=topic_chart_labels,
+                               topic_chart_values=topic_chart_values)
     else:
         user = conn.execute('SELECT * FROM users WHERE id = ?', (get_user_id(),)).fetchone()
         sets = conn.execute('SELECT * FROM question_sets').fetchall()
@@ -310,14 +349,24 @@ def id_card(student_code):
 
     proficiency_raw = conn.execute('SELECT * FROM student_topic_mastery WHERE user_id = ?', (user['id'],)).fetchall()
     
-    proficiency = []
-    for topic in proficiency_raw:
-        topic_dict = dict(topic)
-        topic_dict['percentage'] = (topic['xp'] / XP_TO_LEVEL_UP) * 100
-        proficiency.append(topic_dict)
+    total_xp = sum(topic['xp'] for topic in proficiency_raw)
+    total_possible_xp = len(proficiency_raw) * XP_TO_LEVEL_UP if proficiency_raw else 0
+    overall_percentage = (total_xp / total_possible_xp) * 100 if total_possible_xp > 0 else 0
+    
+    proficiency_level, proficiency_color_text, proficiency_color_bg = get_proficiency_level(overall_percentage)
+    
+    achievements = conn.execute('''
+        SELECT a.name, a.icon FROM achievements a
+        JOIN student_achievements sa ON a.id = sa.achievement_id
+        WHERE sa.user_id = ?
+    ''', (user['id'],)).fetchall()
 
     conn.close()
-    return render_template('student/id_card.html', user=user, proficiency=proficiency)
+    return render_template('student/id_card.html', 
+                           user=user, 
+                           proficiency_level=proficiency_level,
+                           proficiency_color_bg=proficiency_color_bg,
+                           achievements=achievements)
 
 @app.route('/achievements')
 def achievements():
@@ -330,6 +379,20 @@ def code_sandbox():
     if not get_user_id() or is_admin():
         return redirect(url_for('login'))
     return render_template('student/sandbox.html')
+
+@app.route('/leaderboard')
+def leaderboard():
+    if not get_user_id() or is_admin():
+        return redirect(url_for('login'))
+    conn = get_db_connection()
+    leaderboard_data = conn.execute('''
+        SELECT first_name, last_name, level, xp, profile_image, id
+        FROM users
+        WHERE is_admin = 0
+        ORDER BY level DESC, xp DESC
+    ''').fetchall()
+    conn.close()
+    return render_template('student/leaderboard.html', leaderboard=leaderboard_data)
 
 @app.route('/quiz/<int:set_id>')
 def quiz(set_id):
