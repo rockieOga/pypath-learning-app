@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyPath ID Card</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <div class="w-[3.375in] h-[2.125in] p-4 bg-slate-800 text-white flex flex-col justify-between">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-lg font-bold">{{ user.first_name }} {{ user.last_name }}</h1>
+                <p class="text-sky-400 text-sm">Level {{ user.level }} Pythonista</p>
+                <div class="mt-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full inline-block">
+                    {{ proficiency_level }}
+                </div>
+            </div>
+            <div class="flex-shrink-0">
+                <img src="https://placehold.co/64x64/7dd3fc/0c4a6e?text={{ user.first_name[0] }}" alt="Profile Image" class="w-16 h-16 rounded-full border-2 border-sky-400">
+            </div>
+        </div>
+        <div>
+            <h2 class="text-xs font-bold uppercase text-slate-400 mb-2">Achievements</h2>
+            <div class="flex space-x-2">
+                {% for achievement in achievements %}
+                    <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center" title="{{ achievement.name }}">
+                        <i data-lucide="{{ achievement.icon }}" class="w-4 h-4 text-yellow-400"></i>
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-500">No badges earned yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="flex justify-end">
+             <div id="qrcode" class="w-12 h-12 bg-white p-1 rounded"></div>
+        </div>
+    </div>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+        const qr = qrcode(0, 'L');
+        qr.addData("{{ request.url }}");
+        qr.make();
+        document.getElementById('qrcode').innerHTML = qr.createImgTag(2);
+    </script>
+</body>
+</html>

@@ -13,7 +13,7 @@ DROP TABLE IF EXISTS questions;
 DROP TABLE IF EXISTS users;
 
 
--- Users table with gamification fields
+-- Users table with gamification and profile image fields
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -22,6 +22,7 @@ CREATE TABLE users (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     middle_name TEXT,
+    profile_image TEXT, -- New column for base64 image data
     is_admin INTEGER NOT NULL DEFAULT 0,
     level INTEGER NOT NULL DEFAULT 1,
     xp INTEGER NOT NULL DEFAULT 0
@@ -56,7 +57,7 @@ CREATE TABLE achievements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     description TEXT NOT NULL,
-    icon TEXT NOT NULL -- e.g., 'check-circle' from Lucide icons
+    icon TEXT NOT NULL
 );
 
 CREATE TABLE student_achievements (

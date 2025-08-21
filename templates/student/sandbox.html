@@ -3,59 +3,99 @@
 {% block header %}Code Sandbox{% endblock %}
 
 {% block content %}
-<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 text-white h-full flex flex-col">
+<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 text-white h-full flex flex-col" style="height: 75vh;">
     <h2 class="text-2xl font-bold text-white mb-4">Python Simulator</h2>
-    <p class="text-slate-400 mb-6">Write your Python code below and click "Run" to see the output. This is a safe space to experiment and learn.</p>
-    
+    <p class="text-slate-400 mb-6">
+        Write your Python code below and click "Run" to see the output.
+        This is a safe space to experiment and learn.
+    </p>
+
     <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Code Editor -->
-        <div class="flex flex-col">
-            <label for="code-editor" class="text-sm font-semibold mb-2 text-slate-300">Your Code</label>
-            <textarea id="code-editor" class="w-full h-full bg-slate-900 text-sky-300 font-mono p-4 rounded-md border border-slate-700 focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="print('Hello, PyPath!')"></textarea>
-        </div>
-        
-        <!-- Output Console -->
-        <div class="flex flex-col">
-            <label for="output-console" class="text-sm font-semibold mb-2 text-slate-300">Output</label>
-            <div id="output-console" class="w-full h-full bg-slate-900 text-white font-mono p-4 rounded-md border border-slate-700 overflow-y-auto">
-                <span class="text-slate-500">Your code's output will appear here...</span>
-            </div>
+        <!-- Code editor -->
+        <textarea id="python-editor"></textarea>
+
+        <!-- Output panel -->
+        <div id="output" class="w-full h-full p-4 rounded-lg bg-slate-900 text-green-300 font-mono overflow-auto">
+            <!-- Execution results will show here -->
         </div>
     </div>
-    
-    <div class="mt-6 text-right">
-        <button id="runCodeBtn" class="bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-emerald-600 transition-colors flex items-center justify-center ml-auto">
-            <i data-lucide="play" class="w-5 h-5 mr-2"></i>
-            Run Code
+
+    <div class="mt-4 flex justify-between">
+        <button id="clear-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow">
+            Clear Console
+        </button>
+        <button id="run-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow">
+            Run
         </button>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
+<!-- Brython -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython_stdlib.js"></script>
+
+<!-- CodeMirror -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/python/python.min.js"></script>
+
 <script>
-    // Note: A secure, server-side execution environment would be needed for a production application.
-    // This is a simplified client-side example for demonstration.
-    document.getElementById('runCodeBtn').addEventListener('click', () => {
-        const code = document.getElementById('code-editor').value;
-        const outputConsole = document.getElementById('output-console');
-        
-        // Clear previous output
-        outputConsole.innerHTML = '';
+    document.addEventListener('DOMContentLoaded', () => {
+        brython();
+
+        // Initialize CodeMirror editor
+        window.editor = CodeMirror.fromTextArea(document.getElementById("python-editor"), {
+            mode: "python",
+            theme: "dracula",
+            lineNumbers: true,
+            indentUnit: 4,
+            smartIndent: true,
+            matchBrackets: true,
+            autofocus: true
+        });
+    });
+
+    // Append text to output panel
+    function writeToOutput(message, isError = false) {
+        const outputDiv = document.getElementById("output");
+        const line = document.createElement("div");
+        line.textContent = message;
+        line.className = isError ? "text-red-400" : "";
+        outputDiv.appendChild(line);
+
+        // Auto-scroll to bottom
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+    }
+
+    // Run button logic
+    document.getElementById("run-btn").addEventListener("click", () => {
+        let code = editor.getValue();
+        const outputDiv = document.getElementById("output");
+
+        // Clear old output before running
+        outputDiv.innerHTML = "";
 
         try {
-            // This is a simplified and insecure way to run Python.
-            // A real application would need a secure backend sandbox.
-            // For now, we'll just display the code.
-            const p = document.createElement('p');
-            p.textContent = `Running code:\n${code}`;
-            outputConsole.appendChild(p);
-        } catch (e) {
-            const errorP = document.createElement('p');
-            errorP.className = 'text-red-400';
-            errorP.textContent = `Error: ${e.message}`;
-            outputConsole.appendChild(errorP);
+            // Redirect Brython stdout/stderr
+            window.__BRYTHON__.stdout.write = function(data) {
+                writeToOutput(data);
+            };
+            window.__BRYTHON__.stderr.write = function(data) {
+                writeToOutput("❌ " + data, true);
+            };
+
+            let jsCode = __BRYTHON__.python_to_js(code);
+            eval(jsCode);
+
+        } catch (err) {
+            writeToOutput("❌ Error: " + err.message, true);
         }
+    });
+
+    // Clear button logic
+    document.getElementById("clear-btn").addEventListener("click", () => {
+        document.getElementById("output").innerHTML = "";
     });
 </script>
 {% endblock %}

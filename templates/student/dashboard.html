@@ -11,23 +11,32 @@
         <!-- Player Status Card -->
         <div class="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 text-white">
             <div class="flex items-center space-x-6">
-                <div class="flex-shrink-0">
-                    <div class="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center">
-                        <i data-lucide="user" class="w-12 h-12 text-sky-400"></i>
-                    </div>
+                <div class="flex-shrink-0 relative">
+                    <!-- Profile Image -->
+                    <img id="profileImage" 
+                         src="{{ user.profile_image or 'https://placehold.co/96x96/1e293b/94a3b8?text=' + (session.first_name[0] if session.first_name else 'P') }}" 
+                         alt="Profile Image" 
+                         class="w-24 h-24 rounded-full border-4 border-slate-700 object-cover">
+                    <!-- Upload Button -->
+                    <label for="imageUpload" class="absolute bottom-0 right-0 bg-sky-500 text-white rounded-full p-2 cursor-pointer hover:bg-sky-600 transition-colors">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                        <input type="file" id="imageUpload" class="hidden" accept="image/*">
+                    </label>
                 </div>
                 <div class="flex-grow">
                     <h2 class="text-2xl font-bold text-white">{{ session.first_name or session.username }}</h2>
                     <p class="text-sky-400">Aspiring Pythonista</p>
+                    {% if user %}
                     <div class="mt-4">
                         <div class="flex justify-between mb-1 text-sm font-medium text-slate-300">
                             <span>Level {{ user.level }}</span>
                             <span>{{ user.xp }} / {{ user.next_level_xp }} XP</span>
                         </div>
                         <div class="w-full bg-slate-700 rounded-full h-4">
-                            <div class="bg-sky-500 h-4 rounded-full" style="width: {{ (user.xp / user.next_level_xp) * 100 }}%"></div>
+                            <div class="bg-sky-500 h-4 rounded-full" style="width: {{ (user.xp / user.next_level_xp) * 100 if user.next_level_xp > 0 else 0 }}%"></div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -62,17 +71,14 @@
             <h3 class="text-xl font-bold text-gray-900 mb-4">Topic Mastery</h3>
             <div class="space-y-4">
                 {% for topic in proficiency %}
-                <div class="border-t pt-4">
+                <div>
                     <div class="flex justify-between mb-1">
                         <span class="text-base font-medium text-gray-700">{{ topic.topic }}</span>
                         <span class="text-sm font-medium text-sky-700">Lvl {{ topic.level }}</span>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
                         <div class="bg-sky-600 h-2.5 rounded-full" style="width: {{ topic.percentage }}%"></div>
                     </div>
-                    <a href="{{ topic.study_link }}" target="_blank" class="text-sm w-full block text-center bg-slate-100 text-slate-700 font-semibold py-2 px-3 rounded-lg hover:bg-slate-200 transition">
-                        Study Topic
-                    </a>
                 </div>
                 {% else %}
                 <p class="text-gray-500">Complete a quiz to see your topic mastery.</p>
@@ -80,7 +86,94 @@
             </div>
         </div>
 
+        <!-- Actions Card -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Actions</h3>
+            <div class="space-y-3">
+                <a href="{{ url_for('code_sandbox') }}" class="w-full flex items-center justify-center text-center bg-emerald-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-emerald-600 transition-colors">
+                    <i data-lucide="flask-conical" class="w-5 h-5 mr-2"></i>
+                    Code Sandbox
+                </a>
+                 <a href="{{ url_for('achievements') }}" class="w-full flex items-center justify-center text-center bg-slate-200 text-slate-800 font-semibold py-3 px-4 rounded-lg hover:bg-slate-300 transition-colors">
+                    <i data-lucide="trophy" class="w-5 h-5 mr-2"></i>
+                    View Achievements
+                </a>
+                <button id="printIdCardBtn" class="w-full flex items-center justify-center text-center bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-sky-600 transition-colors">
+                    <i data-lucide="printer" class="w-5 h-5 mr-2"></i>
+                    Print ID Card
+                </button>
+            </div>
+        </div>
+
     </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('printIdCardBtn').addEventListener('click', () => {
+        {% if user and user.student_code %}
+        const printWindow = window.open("{{ url_for('id_card', student_code=user.student_code) }}", '_blank');
+        if (printWindow) {
+            printWindow.onload = function() {
+                printWindow.print();
+            };
+        }
+        {% else %}
+        alert("Could not generate ID card. User data is missing.");
+        {% endif %}
+    });
+
+    document.getElementById('imageUpload').addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const size = 96;
+                    canvas.width = size;
+                    canvas.height = size;
+
+                    let sourceX, sourceY, sourceWidth, sourceHeight;
+                    if (img.width > img.height) {
+                        sourceHeight = img.height;
+                        sourceWidth = img.height;
+                        sourceX = (img.width - img.height) / 2;
+                        sourceY = 0;
+                    } else {
+                        sourceWidth = img.width;
+                        sourceHeight = img.width;
+                        sourceX = 0;
+                        sourceY = (img.height - img.width) / 2;
+                    }
+
+                    ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, size, size);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    document.getElementById('profileImage').src = dataUrl;
+                    
+                    // Send the new image data to the server
+                    fetch("{{ url_for('update_profile_image') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ image: dataUrl })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            console.error('Failed to save profile image.');
+                        }
+                    });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
 {% endblock %}

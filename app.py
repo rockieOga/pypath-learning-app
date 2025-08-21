@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import sqlite3
 import os
 import bcrypt
@@ -148,6 +148,24 @@ def profile():
     conn.close()
     return render_template('profile.html', user=user)
 
+@app.route('/update_profile_image', methods=['POST'])
+def update_profile_image():
+    if not get_user_id():
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    data = request.get_json()
+    image_data = data.get('image')
+
+    if not image_data:
+        return jsonify({'success': False, 'error': 'No image data provided'}), 400
+
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET profile_image = ? WHERE id = ?', (image_data, get_user_id()))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True})
+
 # --- Core Dashboard ---
 @app.route('/dashboard')
 def dashboard():
@@ -281,6 +299,37 @@ def student_result_history():
         history.append(row_dict)
     conn.close()
     return render_template('student/history.html', history=history)
+    
+@app.route('/id_card/<student_code>')
+def id_card(student_code):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE student_code = ?', (student_code,)).fetchone()
+    
+    if not user:
+        return "User not found", 404
+
+    proficiency_raw = conn.execute('SELECT * FROM student_topic_mastery WHERE user_id = ?', (user['id'],)).fetchall()
+    
+    proficiency = []
+    for topic in proficiency_raw:
+        topic_dict = dict(topic)
+        topic_dict['percentage'] = (topic['xp'] / XP_TO_LEVEL_UP) * 100
+        proficiency.append(topic_dict)
+
+    conn.close()
+    return render_template('student/id_card.html', user=user, proficiency=proficiency)
+
+@app.route('/achievements')
+def achievements():
+    if not get_user_id() or is_admin():
+        return redirect(url_for('login'))
+    return render_template('student/achievements.html')
+
+@app.route('/sandbox')
+def code_sandbox():
+    if not get_user_id() or is_admin():
+        return redirect(url_for('login'))
+    return render_template('student/sandbox.html')
 
 @app.route('/quiz/<int:set_id>')
 def quiz(set_id):
