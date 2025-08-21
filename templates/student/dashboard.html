@@ -76,17 +76,19 @@
         <!-- Topic Mastery "Stats" -->
         <div>
             <h3 class="text-xl font-bold text-gray-900 mb-4">Topic Mastery</h3>
-            <div class="space-y-4">
+            <div class="space-y-6">
                 {% for topic in proficiency %}
-                <div class="pt-4">
-                    <div class="flex justify-between mb-1">
-                        <span class="text-base font-medium text-gray-700">{{ topic.topic }}</span>
-                        <span class="text-sm font-medium text-sky-700">Lvl {{ topic.level }}</span>
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex-grow">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-base font-medium text-gray-700">{{ topic.topic }}</span>
+                            <span class="text-sm font-medium text-sky-700">Lvl {{ topic.level }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-sky-600 h-2.5 rounded-full" style="width: {{ topic.percentage }}%"></div>
+                        </div>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-3">
-                        <div class="bg-sky-600 h-2.5 rounded-full" style="width: {{ topic.percentage }}%"></div>
-                    </div>
-                    <a href="{{ topic.study_link }}" target="_blank" class="text-sm w-full block text-center bg-slate-100 text-slate-700 font-semibold py-2 px-3 rounded-lg hover:bg-slate-200 transition">
+                    <a href="{{ topic.study_link }}" target="_blank" class="flex-shrink-0 text-sm w-auto text-center bg-slate-100 text-slate-700 font-semibold py-2 px-3 rounded-lg hover:bg-slate-200 transition">
                         Study Topic
                     </a>
                 </div>
@@ -157,7 +159,68 @@
         });
     }
 
-    // Other scripts for image upload and print button
-    // ...
+    // ** FIX IS HERE: Restored the missing JavaScript for image upload and print button **
+    document.getElementById('printIdCardBtn').addEventListener('click', () => {
+        {% if user and user.student_code %}
+        const printWindow = window.open("{{ url_for('id_card', student_code=user.student_code) }}", '_blank');
+        if (printWindow) {
+            printWindow.onload = function() {
+                printWindow.print();
+            };
+        }
+        {% else %}
+        alert("Could not generate ID card. User data is missing.");
+        {% endif %}
+    });
+
+    document.getElementById('imageUpload').addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const size = 96;
+                    canvas.width = size;
+                    canvas.height = size;
+
+                    let sourceX, sourceY, sourceWidth, sourceHeight;
+                    if (img.width > img.height) {
+                        sourceHeight = img.height;
+                        sourceWidth = img.height;
+                        sourceX = (img.width - img.height) / 2;
+                        sourceY = 0;
+                    } else {
+                        sourceWidth = img.width;
+                        sourceHeight = img.width;
+                        sourceX = 0;
+                        sourceY = (img.height - img.width) / 2;
+                    }
+
+                    ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, size, size);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    document.getElementById('profileImage').src = dataUrl;
+                    
+                    fetch("{{ url_for('update_profile_image') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ image: dataUrl })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            console.error('Failed to save profile image.');
+                        }
+                    });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
 </script>
 {% endblock %}

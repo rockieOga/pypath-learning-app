@@ -137,8 +137,8 @@ INSERT INTO questions (question_text, question_type, topic, option_a, option_b, 
 
 -- Coding Questions
 INSERT INTO questions (question_type, topic, question_text, correct_code_output) VALUES
-('coding', 'Syntax', 'Write a single line of Python code that prints the string "Hello, World!".', 'Hello, World!\n'),
-('coding', 'Functions', 'Write a Python function named `add_two` that takes two numbers as arguments and returns their sum. Then call the function with 5 and 3 and print the result.', '8\n');
+('coding', 'Syntax', 'Write a single line of Python code that prints the string "Hello, World!".', 'Hello, World!'),
+('coding', 'Functions', 'Write a Python function named `add_two` that takes two numbers as arguments and returns their sum. Then call the function with 5 and 3 and print the result.', '8');
 
 -- Create a default question set
 INSERT INTO question_sets (title, description) VALUES
