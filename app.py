@@ -67,10 +67,13 @@ def format_duration(start_time, end_time):
     if minutes > 0: return f"{minutes}m {seconds}s"
     return f"{seconds}s"
 
-def calculate_proficiency(user_id, conn):
-    last_result = conn.execute('SELECT id FROM results WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1', (user_id,)).fetchone()
-    if not last_result: return []
-    answers = conn.execute('SELECT q.topic, sa.is_correct FROM student_answers sa JOIN questions q ON sa.question_id = q.id WHERE sa.result_id = ?', (last_result['id'],)).fetchall()
+def calculate_proficiency(user_id, conn, result_id=None):
+    if result_id is None:
+        last_result_row = conn.execute('SELECT id FROM results WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1', (user_id,)).fetchone()
+        if not last_result_row: return []
+        result_id = last_result_row['id']
+        
+    answers = conn.execute('SELECT q.topic, sa.is_correct FROM student_answers sa JOIN questions q ON sa.question_id = q.id WHERE sa.result_id = ?', (result_id,)).fetchall()
     topic_scores = {}
     for answer in answers:
         topic = answer['topic']
@@ -81,7 +84,7 @@ def calculate_proficiency(user_id, conn):
     for topic, scores in topic_scores.items():
         percentage = (scores['correct'] / scores['total']) * 100 if scores['total'] > 0 else 0
         level, color_text, color_bg = get_proficiency_level(percentage)
-        proficiency_analysis.append({'topic': topic, 'percentage': round(percentage), 'level': level, 'study_link': W3SCHOOLS_LINKS.get(topic, '#')})
+        proficiency_analysis.append({'topic': topic, 'percentage': round(percentage), 'level': level, 'study_link': W3SCHOOLS_LINKS.get(topic, '#'), 'color_text': color_text})
     return proficiency_analysis
     
 def get_proficiency_level(percentage):
@@ -212,25 +215,15 @@ def dashboard():
         pass_rate = (passed_count / total_students_with_scores) * 100 if total_students_with_scores > 0 else 0
         avg_score = sum(row['latest_score'] for row in latest_scores) / total_students_with_scores if total_students_with_scores > 0 else 0
 
-        # ** FIX IS HERE: This query now counts students with correct answers per topic **
-        all_topics_raw = conn.execute('SELECT DISTINCT topic FROM questions').fetchall()
-        all_topics = {row['topic']: 0 for row in all_topics_raw}
-        
-        topic_correctness = conn.execute('''
-            SELECT q.topic, COUNT(DISTINCT r.user_id) as student_count
-            FROM student_answers sa
-            JOIN results r ON sa.result_id = r.id
-            JOIN questions q ON sa.question_id = q.id
-            WHERE sa.is_correct = 1
-            GROUP BY q.topic
+        topic_popularity = conn.execute('''
+            SELECT topic, COUNT(DISTINCT user_id) as student_count
+            FROM student_topic_mastery
+            GROUP BY topic
+            ORDER BY student_count DESC
         ''').fetchall()
         
-        for row in topic_correctness:
-            if row['topic'] in all_topics:
-                all_topics[row['topic']] = row['student_count']
-
-        topic_chart_labels = list(all_topics.keys())
-        topic_chart_values = list(all_topics.values())
+        topic_chart_labels = [row['topic'] for row in topic_popularity]
+        topic_chart_values = [row['student_count'] for row in topic_popularity]
         
         conn.close()
         return render_template('admin/dashboard.html', 
@@ -246,13 +239,11 @@ def dashboard():
         user = conn.execute('SELECT * FROM users WHERE id = ?', (get_user_id(),)).fetchone()
         sets = conn.execute('SELECT * FROM question_sets').fetchall()
         
-        proficiency_raw = conn.execute('SELECT * FROM student_topic_mastery WHERE user_id = ?', (get_user_id(),)).fetchall()
-        proficiency = []
-        for topic_data in proficiency_raw:
-            topic_dict = dict(topic_data)
-            topic_dict['percentage'] = (topic_data['xp'] / XP_TO_LEVEL_UP) * 100
-            topic_dict['study_link'] = W3SCHOOLS_LINKS.get(topic_data['topic'], '#')
-            proficiency.append(topic_dict)
+        latest_result = conn.execute('SELECT * FROM results WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1', (get_user_id(),)).fetchone()
+        
+        proficiency_breakdown = []
+        if latest_result:
+            proficiency_breakdown = calculate_proficiency(get_user_id(), conn, latest_result['id'])
 
         user_data = dict(user)
         user_data['next_level_xp'] = XP_TO_LEVEL_UP
@@ -271,8 +262,9 @@ def dashboard():
         conn.close()
         return render_template('student/dashboard.html', 
                                user=user_data, 
-                               sets=sets, 
-                               proficiency=proficiency,
+                               sets=sets,
+                               latest_result=latest_result,
+                               proficiency_breakdown=proficiency_breakdown,
                                history_labels=history_labels,
                                history_scores=history_scores)
 
